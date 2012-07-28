@@ -26,6 +26,7 @@
 #include <Alphabet.hpp>
 
 #include <iomanip>
+#include <popt.h>
 
 #include "dme_tcm_workspace.hpp"
 #include "dme_zoops_workspace.hpp"
@@ -51,7 +52,8 @@ using std::ios_base;
 static size_t VERBOSE = false;
 
 void
-get_seeds_zoops(const vector<string> &foreground,
+get_seeds_zoops(const bool single_strand,
+		const vector<string> &foreground,
 		const vector<string> &background,
 		const vector<float> &base_comp,
 		const size_t motif_width,
@@ -81,7 +83,8 @@ get_seeds_zoops(const vector<string> &foreground,
     const ScoringMatrix sm(matrix, base_comp, correction);
       
     ws.deactivate(sm);
-    ws.deactivate(sm.revcomp());
+    if (!single_strand)
+      ws.deactivate(sm.revcomp());
     seeds.push_back(cts.path_to_matrix(path));
   }
   if (VERBOSE)
@@ -149,7 +152,8 @@ refine_matrix_zoops(dme_zoops_workspace &ws, const size_t motif_width,
 
 
 void
-refine_matrices_zoops(const vector<string> &foreground,
+refine_matrices_zoops(const bool single_strand,
+		      const vector<string> &foreground,
 		      const vector<string> &background,
 		      const size_t motif_width,
 		      const float refine_granularity,
@@ -175,7 +179,8 @@ refine_matrices_zoops(const vector<string> &foreground,
     
     const ScoringMatrix sm(seeds[i], base_comp, correction);
     ws.deactivate(sm);
-    ws.deactivate(sm.revcomp());
+    if (!single_strand)
+      ws.deactivate(sm.revcomp());
   }
   if (VERBOSE) {
     const string message(refining_progress_prefix + 
@@ -189,7 +194,8 @@ refine_matrices_zoops(const vector<string> &foreground,
 
 
 void
-get_seeds_tcm(const vector<string> &foreground,
+get_seeds_tcm(const bool single_strand,
+	      const vector<string> &foreground,
 	      const vector<string> &background,
 	      const vector<float> &base_comp,
 	      const size_t motif_width,
@@ -218,7 +224,8 @@ get_seeds_tcm(const vector<string> &foreground,
     const ScoringMatrix sm(matrix, base_comp, correction);
       
     ws.deactivate(sm);
-    ws.deactivate(sm.revcomp());
+    if (!single_strand)
+      ws.deactivate(sm.revcomp());
     seeds.push_back(cts.path_to_matrix(path));
   }
   if (VERBOSE)
@@ -285,7 +292,8 @@ refine_matrix_tcm(dme_tcm_workspace &ws, const size_t motif_width,
 
 
 void
-refine_matrices_tcm(const vector<string> &foreground,
+refine_matrices_tcm(const bool single_strand,
+		    const vector<string> &foreground,
 		    const vector<string> &background,
 		    const size_t motif_width,
 		    const float refine_granularity,
@@ -312,7 +320,8 @@ refine_matrices_tcm(const vector<string> &foreground,
     
     const ScoringMatrix sm(seeds[i], base_comp, correction);
     ws.deactivate(sm);
-    ws.deactivate(sm.revcomp());
+    if (!single_strand)
+      ws.deactivate(sm.revcomp());
   }
   if (VERBOSE) {
     const string message(refining_progress_prefix + 
@@ -601,7 +610,8 @@ prepare_motif_zoops(const string &name,
 
 
 void
-preprocess_sequences_zoops(const char *fgfilename, 
+preprocess_sequences_zoops(const bool single_strand,
+			   const char *fgfilename, 
 			   const char *bgfilename, 
 			   vector<string> &fgnames, 
 			   vector<string> &original_foreground, 
@@ -641,20 +651,23 @@ preprocess_sequences_zoops(const char *fgfilename,
 			   bg_length*bg_base_comp[i])/(fg_length + bg_length));
     
     foreground = original_foreground;
-    for (size_t i = 0; i < original_foreground.size(); i++)
-      foreground[i] += (string("N") + revcomp(foreground[i]));
+    if (!single_strand)
+      for (size_t i = 0; i < original_foreground.size(); i++)
+	foreground[i] += (string("N") + revcomp(foreground[i]));
     
     background = original_background;
-    for (size_t i = 0; i < background.size(); i++)
-      background[i] += (string("N") + revcomp(background[i]));
+    if (!single_strand)
+      for (size_t i = 0; i < background.size(); i++)
+	background[i] += (string("N") + revcomp(background[i]));
     
     fg_bg_ratio = static_cast<float>(foreground.size())/background.size();
   }
   else {
     base_comp = fg_base_comp;
     foreground = original_foreground;
-    for (size_t i = 0; i < foreground.size(); ++i)
-      foreground[i] += "N" + revcomp(foreground[i]);
+    if (!single_strand)
+      for (size_t i = 0; i < foreground.size(); ++i)
+	foreground[i] += "N" + revcomp(foreground[i]);
   }
   
 } // END preprocess_sequences_zoops()
@@ -713,7 +726,8 @@ prepare_motif_tcm(const string &name,
 
 
 void
-preprocess_sequences_tcm(const char *fgfilename, const char *bgfilename, 
+preprocess_sequences_tcm(const bool single_strand,
+			 const char *fgfilename, const char *bgfilename, 
 			 vector<string> &fgnames, 
 			 vector<string> &original_foreground, 
 			 vector<string> &foreground,
@@ -751,20 +765,23 @@ preprocess_sequences_tcm(const char *fgfilename, const char *bgfilename,
 			   bg_length*bg_base_comp[i])/(fg_length + bg_length));
     
     foreground = original_foreground;
-    for (size_t i = 0; i < original_foreground.size(); i++)
-      foreground[i] += (string("N") + revcomp(foreground[i]));
-      
+    if (!single_strand)
+      for (size_t i = 0; i < original_foreground.size(); i++)
+	foreground[i] += (string("N") + revcomp(foreground[i]));
+    
     background = original_background;
-    for (size_t i = 0; i < background.size(); i++)
-      background[i] += (string("N") + revcomp(background[i]));
-
+    if (!single_strand)
+      for (size_t i = 0; i < background.size(); i++)
+	background[i] += (string("N") + revcomp(background[i]));
+    
     length_ratio = static_cast<float>(fg_length)/bg_length;
   }
   else {
     base_comp = fg_base_comp;
     foreground = original_foreground;
-    for (size_t i = 0; i < foreground.size(); ++i)
-      foreground[i] += "N" + revcomp(foreground[i]);
+    if (!single_strand)
+      for (size_t i = 0; i < foreground.size(); ++i)
+	foreground[i] += "N" + revcomp(foreground[i]);
   }
 } // END preprocess_sequences()
 
@@ -915,7 +932,7 @@ main(int argc, const char **argv) {
 	"number of refinement iterations"
       },
       { "single-strand", '\0',
-	POPT_ARG_NONE | POPT_ARGFLAG_DOC_HIDDEN, &singlestrand, 0,
+	POPT_ARG_NONE, &singlestrand, 0,
 	"search only one strand"
       },
       { "verbose", 'v',
@@ -965,15 +982,18 @@ main(int argc, const char **argv) {
       if (TCM) {
 	throw CREADException("ZOOPS and TCM options are incompatible");
       }
-      preprocess_sequences_zoops(fgfilename, bgfilename,
+      preprocess_sequences_zoops(singlestrand,
+				 fgfilename, bgfilename,
 				 fgnames, original_foreground, foreground,
 				 bgnames, original_background, background, 
 				 base_comp, fg_bg_ratio);
-      get_seeds_zoops(foreground, background, base_comp,
+      get_seeds_zoops(singlestrand,
+		      foreground, background, base_comp,
 		      motif_width, outputs, granularity, bits,
 		      correction, ratio_adjust, seeds);
       
-      refine_matrices_zoops(foreground, background, motif_width, 
+      refine_matrices_zoops(singlestrand,
+			    foreground, background, motif_width, 
 			    refine_granularity, bits, base_comp, 
 			    n_changes, n_iterations, required_improvement, 
 			    correction, ratio_adjust, seeds);
@@ -981,31 +1001,37 @@ main(int argc, const char **argv) {
     }
     /* TCM: Two compenent mixture (0-to-many occurrences per sequence */
     else if (TCM) {
-      preprocess_sequences_tcm(fgfilename, bgfilename,
+      preprocess_sequences_tcm(singlestrand,
+			       fgfilename, bgfilename,
 			       fgnames, original_foreground, foreground,
 			       bgnames, original_background, background, 
 			       base_comp, fg_bg_ratio);
 
-      get_seeds_tcm(foreground, background, base_comp,
+      get_seeds_tcm(singlestrand,
+		    foreground, background, base_comp,
 		    motif_width, outputs, granularity,
 		    bits, correction, ratio_adjust, seeds);
       
-      refine_matrices_tcm(foreground, background, motif_width, 
+      refine_matrices_tcm(singlestrand,
+			  foreground, background, motif_width, 
 			  refine_granularity, bits, base_comp, 
 			  n_changes, n_iterations, required_improvement, 
 			  correction, ratio_adjust, seeds);
     }
     else { // HYBRID
-      preprocess_sequences_zoops(fgfilename, bgfilename,
+      preprocess_sequences_zoops(singlestrand,
+				 fgfilename, bgfilename,
 				 fgnames, original_foreground, foreground,
 				 bgnames, original_background, background, 
 				 base_comp, fg_bg_ratio);
       
-      get_seeds_tcm(foreground, background, base_comp,
+      get_seeds_tcm(singlestrand,
+		    foreground, background, base_comp,
 		    motif_width, outputs, granularity,
 		    bits, correction, ratio_adjust, seeds);
       
-      refine_matrices_zoops(foreground, background, motif_width, 
+      refine_matrices_zoops(singlestrand,
+			    foreground, background, motif_width, 
 			    refine_granularity, bits, base_comp, 
 			    n_changes, n_iterations, required_improvement, 
 			    correction, ratio_adjust, seeds);

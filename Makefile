@@ -23,12 +23,20 @@ LIBS = -lpopt
 CXX = g++
 CFLAGS = -Wall
 DEBUGFLAGS = -g
-INCLUDEDIR = cread
-LIBDIR = cread
 
-CREAD_SOURCES = $(shell ls cread/*.cpp)
-CREAD_OBJS = $(subst .cpp,.o,$(CREAD_SOURCES))
+INCLUDEDIRS = cread $(HOME)/include
+INCLUDEARGS = $(addprefix -I ,$(INCLUDEDIRS))
+
+LIBDIR = $(HOME)/lib
+
+CREAD_SOURCES = Alphabet.cpp Pattern.cpp Motif.cpp \
+	ScoringMatrix.cpp MotifSite.cpp Matrix.cpp FastaFile.cpp
+CREAD_OBJS = $(addprefix cread/, $(subst .cpp,.o,$(CREAD_SOURCES)))
 OPT = 1
+
+ifeq "$(shell uname)" "Darwin"
+CFLAGS += -arch x86_64
+endif
 
 ifdef DEBUG
 CFLAGS += $(DEBUGFLAGS)
@@ -40,14 +48,14 @@ endif
 
 all:	$(PROGS)
 
-%.o: %.cpp
-	$(CXX) $(CFLAGS) -c -o $@ -I$(INCLUDEDIR) $<
+dme2:	dme2.o dme_tcm_workspace.o dme_zoops_workspace.o CTSet.o \
+	$(CREAD_OBJS)
+	$(CXX) $(CFLAGS) -o $@ $^ $(LIBS) $(INCLUDEARGS) -L$(LIBDIR)
 
-dme2:	dme2.o dme_tcm_workspace.o dme_zoops_workspace.o CTSet.o
-	make -C cread	
-	$(CXX) $(CFLAGS) -o $@ $^ $(CREAD_OBJS) $(LIBS) -I$(INCLUDEDIR) -L$(LIBDIR)
+%.o: %.cpp
+	$(CXX) $(CFLAGS) -c -o $@ $(INCLUDEARGS) $<
 
 clean:
-	make -C cread clean
+	@-make -C cread clean
 	@-rm -f $(PROGS) *.o
 .PHONY: clean
