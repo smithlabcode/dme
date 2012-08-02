@@ -25,7 +25,6 @@ DEBUGFLAGS = -g
 
 INCLUDEDIRS = $(SMITHLAB_CPP)
 INCLUDEARGS = $(addprefix -I ,$(INCLUDEDIRS))
-LIBDIR = $(HOME)/lib
 
 ifeq "$(shell uname)" "Darwin"
 CFLAGS += -arch x86_64
