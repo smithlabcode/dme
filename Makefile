@@ -41,7 +41,7 @@ $(PROGS): $(addprefix $(SMITHLAB_CPP)/, GenomicRegion.o smithlab_os.o \
 
 dme2:	dme2.cpp dme_tcm_workspace.o dme_zoops_workspace.o CTSet.o \
 	Pattern.o Motif.o ScoringMatrix.o MotifSite.o Matrix.o
-	$(CXX) $(CFLAGS) -o $@ $^ $(LIBS) $(INCLUDEARGS) -L$(LIBDIR)
+	$(CXX) $(CFLAGS) -o $@ $^ $(LIBS) $(INCLUDEARGS)
 
 %.o: %.cpp %.hpp
 	$(CXX) $(CFLAGS) -c -o $@ $(INCLUDEARGS) $<
