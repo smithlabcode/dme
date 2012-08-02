@@ -55,7 +55,7 @@ using std::ios_base;
 
 using smithlab::alphabet_size;
 
-static size_t VERBOSE = false;
+bool VERBOSE = false;
 
 void
 get_seeds_zoops(const bool single_strand,
