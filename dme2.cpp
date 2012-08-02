@@ -18,19 +18,20 @@
  * 02110-1301 USA
  */
 
-#include <cread.hpp>
-#include <Matrix.hpp>
-#include <ScoringMatrix.hpp>
-#include <Motif.hpp>
-#include <FastaFile.hpp>
-#include <Alphabet.hpp>
-
 #include <iomanip>
+#include <numeric>
 #include <popt.h>
+
+#include <smithlab_os.hpp>
+#include <smithlab_utils.hpp>
 
 #include "dme_tcm_workspace.hpp"
 #include "dme_zoops_workspace.hpp"
 #include "CTSet.hpp"
+
+#include "Matrix.hpp"
+#include "ScoringMatrix.hpp"
+#include "Motif.hpp"
 
 using std::string;
 using std::vector;
@@ -48,6 +49,8 @@ using std::accumulate;
 using std::max;
 using std::copy;
 using std::ios_base;
+
+using smithlab::alphabet_size;
 
 static size_t VERBOSE = false;
 
@@ -170,8 +173,8 @@ refine_matrices_zoops(const bool single_strand,
   dme_zoops_workspace ws(foreground, background, motif_width, adjustment);
   for (size_t i = 0; i < seeds.size(); ++i) {
     const string progress_prefix(refining_progress_prefix + 
-				 cread::toa(i + 1) + "/" +
-				 cread::toa(seeds.size()));
+				 toa(i + 1) + "/" +
+				 toa(seeds.size()));
     refine_matrix_zoops(ws, motif_width, refine_granularity,
 			bits, base_comp, n_changes,
 			n_iterations, required_improvement,
@@ -184,8 +187,8 @@ refine_matrices_zoops(const bool single_strand,
   }
   if (VERBOSE) {
     const string message(refining_progress_prefix + 
-			 cread::toa(seeds.size()) + "/" + 
-			 cread::toa(seeds.size()));
+			 toa(seeds.size()) + "/" + 
+			 toa(seeds.size()));
     cerr << '\r' << std::left << std::setfill(' ') << std::setw(72)
 	 << message << endl;
   }
@@ -311,8 +314,8 @@ refine_matrices_tcm(const bool single_strand,
 		       adjustment);
   for (size_t i = 0; i < seeds.size(); ++i) {
     const string progress_prefix(refining_progress_prefix + 
-				 cread::toa(i + 1) + "/" +
-				 cread::toa(seeds.size()));
+				 toa(i + 1) + "/" +
+				 toa(seeds.size()));
     refine_matrix_tcm(ws, motif_width, refine_granularity, 
 		      bits, base_comp, n_changes,
 		      n_iterations, required_improvement,
@@ -325,7 +328,7 @@ refine_matrices_tcm(const bool single_strand,
   }
   if (VERBOSE) {
     const string message(refining_progress_prefix + 
-			 cread::toa(seeds.size()) + "/" + cread::toa(seeds.size()));
+			 toa(seeds.size()) + "/" + toa(seeds.size()));
     cerr << '\r' << std::left << std::setfill(' ') << std::setw(72)
 	 << message << endl;
   }
@@ -337,7 +340,7 @@ size_t
 effective_sequence_length(const vector<string>& s) {
   size_t length = 0;
   for (vector<string>::const_iterator i = s.begin(); i != s.end(); ++i)
-    length += count_if(i->begin(), i->end(), &valid_base);
+    length += count_if(i->begin(), i->end(), &isvalid);
   return length;
 }
 
@@ -449,6 +452,11 @@ get_counts_matrix(const vector<Site>& sites,
 }
 
 
+
+bool
+valid_base_id(int c) {
+  return (c < static_cast<int>(alphabet_size) && c >= 0);
+}
 
 bool 
 valid_subsequence(const int* offset, const size_t matwidth) {
@@ -610,6 +618,23 @@ prepare_motif_zoops(const string &name,
 
 
 void
+get_base_comp(const vector<string>& sequences, vector<float>& base_comp) {
+  vector<size_t> count(alphabet_size, 0);
+  for (vector<string>::const_iterator i = sequences.begin();
+       i != sequences.end(); ++i)
+    for (string::const_iterator j = i->begin(); j != i->end(); ++j)
+      if (isvalid(*j)) {
+	count[base2int(*j)]++;
+      }
+  const float total = std::accumulate(count.begin(), count.end(), 0.0);
+  base_comp.clear();
+  transform(count.begin(), count.end(), back_inserter(base_comp), 
+		 std::bind2nd(std::divides<float>(), total));
+}
+
+
+
+void
 preprocess_sequences_zoops(const bool single_strand,
 			   const char *fgfilename, 
 			   const char *bgfilename, 
@@ -623,9 +648,7 @@ preprocess_sequences_zoops(const bool single_strand,
 			   float &fg_bg_ratio) {
   
   // read fg sequences
-  FastaFile fg(fgfilename);
-  fgnames = fg.get_names();
-  original_foreground = fg.get_sequences();
+  read_fasta_file(fgfilename, fgnames, original_foreground);
   
   static const size_t max_mask_order = 2;
   static const size_t decoy_width = 8;
@@ -637,9 +660,7 @@ preprocess_sequences_zoops(const bool single_strand,
   
   if (bgfilename) {
     // read bg sequences
-    FastaFile bg(bgfilename);
-    bgnames = bg.get_names();
-    original_background = bg.get_sequences();
+    read_fasta_file(bgfilename, bgnames, original_background);
     
     mask(decoy_width, max_mask_order, original_background);
     
@@ -737,9 +758,7 @@ preprocess_sequences_tcm(const bool single_strand,
 			 vector<float> &base_comp, float &length_ratio) {
   
   // read fg sequences
-  FastaFile fg(fgfilename);
-  fgnames = fg.get_names();
-  original_foreground = fg.get_sequences();
+  read_fasta_file(fgfilename, fgnames, original_foreground);
   
   static const size_t max_mask_order = 2;
   static const size_t decoy_width = 8;
@@ -751,9 +770,7 @@ preprocess_sequences_tcm(const bool single_strand,
 	 
   if (bgfilename) {
     // read bg sequences
-    FastaFile bg(bgfilename);
-    bgnames = bg.get_names();
-    original_background = bg.get_sequences();
+    read_fasta_file(bgfilename, bgnames, original_background);
     
     mask(decoy_width, max_mask_order, original_background);
     
@@ -819,8 +836,8 @@ validate_parameters(size_t &motif_width, float &bits) {
   
   // check to make sure the motif width is reasonable
   if (motif_width > max_motif_width || motif_width == 0)
-    throw CREADException("motif width must be at least 1 and less than " +
-			 cread::toa(max_motif_width));
+    throw SMITHLABException("motif width must be at least 1 and less than " +
+			    toa(max_motif_width));
   
   if (bits == numeric_limits<float>::max())
     bits = param_set[motif_width].bits;
@@ -980,7 +997,7 @@ main(int argc, const char **argv) {
     /* ZOOPS: Zero or one occurrence per sequence */
     if (ZOOPS) {
       if (TCM) {
-	throw CREADException("ZOOPS and TCM options are incompatible");
+	throw SMITHLABException("ZOOPS and TCM options are incompatible");
       }
       preprocess_sequences_zoops(singlestrand,
 				 fgfilename, bgfilename,
@@ -1048,7 +1065,7 @@ main(int argc, const char **argv) {
 	if (VERBOSE)
 	  cerr << "\r" << motif_prep_progress_prefix
 	       << i + 1 << "/" << seeds.size();
-	motifs.push_back(prepare_motif_zoops(accession_prefix + cread::toa(i + 1),
+	motifs.push_back(prepare_motif_zoops(accession_prefix + toa(i + 1),
 					     seeds[i], base_comp, correction,
 					     original_foreground, fgnames,
 					     original_background, bgnames,
@@ -1062,7 +1079,7 @@ main(int argc, const char **argv) {
 	if (VERBOSE)
 	  cerr << "\r" << motif_prep_progress_prefix
 	       << i + 1 << "/" << seeds.size();
-	motifs.push_back(prepare_motif_tcm(accession_prefix + cread::toa(i + 1),
+	motifs.push_back(prepare_motif_tcm(accession_prefix + toa(i + 1),
 					   seeds[i], base_comp, correction,
 					   original_foreground, fgnames,
 					   original_background, bgnames,
@@ -1083,7 +1100,7 @@ main(int argc, const char **argv) {
 	 ostream_iterator<Motif>(*motifout, "\n"));
     if (motifout != &cout) delete motifout;
   }
-  catch (CREADException &e) {
+  catch (SMITHLABException &e) {
     cerr << e.what() << endl;
     return EXIT_FAILURE;
   }

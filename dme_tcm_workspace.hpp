@@ -25,11 +25,10 @@
 #ifndef DME_TCM_WORKSPACE_HPP
 #define DME_TCM_WORKSPACE_HPP
 
-#include <cread.hpp>
-#include <Alphabet.hpp>
-#include <ScoringMatrix.hpp>
-#include <Matrix.hpp>
+#include <smithlab_utils.hpp>
 
+#include "ScoringMatrix.hpp"
+#include "Matrix.hpp"
 #include "CTSet.hpp"
 
 struct dme_tcm_lextree;

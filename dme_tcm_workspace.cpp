@@ -20,14 +20,17 @@
 
 #include "dme_tcm_workspace.hpp"
 
+#include <smithlab_utils.hpp>
+
 using std::max;
 using std::min;
 using std::vector;
 using std::string;
 
-
 using std::cerr;
 using std::endl;
+
+using smithlab::alphabet_size;
 
 
 

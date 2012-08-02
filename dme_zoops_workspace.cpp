@@ -21,7 +21,7 @@
 #include "dme_zoops_workspace.hpp"
 #include "CTSet.hpp"
 
-#include <Matrix.hpp>
+#include "Matrix.hpp"
 
 using std::max;
 using std::min;
@@ -30,6 +30,8 @@ using std::string;
 
 using std::cerr;
 using std::endl;
+
+using smithlab::alphabet_size;
 
 /* convert column types to corresponding scoring matrix columns */
 static float

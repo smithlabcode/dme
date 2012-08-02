@@ -23,8 +23,7 @@
 
 // Warning: magic number in this file assumes alphabet_size==4
 
-#include <cread.hpp>
-#include <Matrix.hpp>
+#include "Matrix.hpp"
 
 struct DMEPath {
   DMEPath(std::vector<size_t> p, float s) : path(p), score(s) {}

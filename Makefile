@@ -21,18 +21,12 @@
 PROGS = dme2
 LIBS = -lpopt
 CXX = g++
-CFLAGS = -Wall
+CFLAGS = -Wall -O2
 DEBUGFLAGS = -g
 
-INCLUDEDIRS = cread $(HOME)/include
+INCLUDEDIRS = $(HOME)/include $(SMITHLAB_CPP)
 INCLUDEARGS = $(addprefix -I ,$(INCLUDEDIRS))
-
 LIBDIR = $(HOME)/lib
-
-CREAD_SOURCES = Alphabet.cpp Pattern.cpp Motif.cpp \
-	ScoringMatrix.cpp MotifSite.cpp Matrix.cpp FastaFile.cpp
-CREAD_OBJS = $(addprefix cread/, $(subst .cpp,.o,$(CREAD_SOURCES)))
-OPT = 1
 
 ifeq "$(shell uname)" "Darwin"
 CFLAGS += -arch x86_64
@@ -42,20 +36,18 @@ ifdef DEBUG
 CFLAGS += $(DEBUGFLAGS)
 endif
 
-ifdef OPT
-CFLAGS += -O2
-endif
-
 all:	$(PROGS)
 
+$(PROGS): $(addprefix $(SMITHLAB_CPP)/, GenomicRegion.o smithlab_os.o \
+	smithlab_utils.o OptionParser.o)
+
 dme2:	dme2.cpp dme_tcm_workspace.o dme_zoops_workspace.o CTSet.o \
-	$(CREAD_OBJS)
+	Pattern.o Motif.o ScoringMatrix.o MotifSite.o Matrix.o
 	$(CXX) $(CFLAGS) -o $@ $^ $(LIBS) $(INCLUDEARGS) -L$(LIBDIR)
 
-%.o: %.cpp
+%.o: %.cpp %.hpp
 	$(CXX) $(CFLAGS) -c -o $@ $(INCLUDEARGS) $<
 
 clean:
-	@-make -C cread clean
 	@-rm -f $(PROGS) *.o
 .PHONY: clean

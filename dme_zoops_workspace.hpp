@@ -25,10 +25,9 @@
 #ifndef DME_ZOOPS_WORKSPACE_HPP
 #define DME_ZOOPS_WORKSPACE_HPP
 
-#include <cread.hpp>
-#include <Alphabet.hpp>
-#include <ScoringMatrix.hpp>
+#include <smithlab_utils.hpp>
 
+#include "ScoringMatrix.hpp"
 #include "CTSet.hpp"
 
 struct dme_zoops_lextree;

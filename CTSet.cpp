@@ -20,11 +20,17 @@
 
 #include "CTSet.hpp"
 
+#include <cstring>
+#include <numeric>
+#include <smithlab_utils.hpp>
+
 using std::vector;
 using std::string;
 using std::pair;
 using std::sort;
 using std::max;
+
+using smithlab::alphabet_size;
 
 float 
 CTSet::fixed_matrix[15][4] = {
@@ -53,8 +59,8 @@ CTSet::get_bits(const vector<float> &col,
   float bits = 0;
   for (size_t i = 0; i < alphabet_size; ++i)
     if (col[i] > 0)
-      bits += col[i]*(cread::log2(col[i]) - 
-		      cread::log2(base_comp[i]));
+      bits += col[i]*(log2(col[i]) - 
+		      log2(base_comp[i]));
   return bits;
 }
 
