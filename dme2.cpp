@@ -1,5 +1,7 @@
 /*
- * Copyright (C) 2008 Cold Spring Harbor Laboratory and Andrew D Smith
+ * Copyright (C) 2012 University of Southern California and 
+ *                    Andrew D Smith
+ *
  * Author: Andrew D Smith
  *
  * This program is free software; you can redistribute it and/or
@@ -20,7 +22,8 @@
 
 #include <iomanip>
 #include <numeric>
-#include <popt.h>
+
+#include <OptionParser.hpp>
 
 #include <smithlab_os.hpp>
 #include <smithlab_utils.hpp>
@@ -854,135 +857,92 @@ main(int argc, const char **argv) {
     // Not a parameter:
     static const char *motif_prep_progress_prefix = "preparing motifs ";
     
-    static const char *fgfilename = 0;  // foreground sequences file
-    static const char *bgfilename = 0;  // background sequences file
-    static const char *outfilename = 0;     // output file
+    string bgfilename;  // background sequences file
+    string outfilename;     // output file
 
-    static const char *accession_prefix = "DME"; // names of all
+    string accession_prefix("DME"); // names of all
     // output motifs
     // start with this
 
-    static int ZOOPS = 0;
-    static int TCM = 0;
+    static bool ZOOPS = 0;
+    static bool TCM = 0;
 
     static float bits =              // minimum average information content
       numeric_limits<float>::max();  // per position for matrices in
 				     // search space
-
-    static int singlestrand = false; // Indicates if both strands are
+    static bool singlestrand = false; // Indicates if both strands are
 				     // to be used
-
     static float granularity = 1.0;  // granularity of motifs in
 				     // search space
-    
     static float refine_granularity = 0.25; // minimum granularity to use
                                             // when refining motifs
-    
     static float correction = 1e-10; // correction value to be added
 				     // to each matrix entry
-    
     static float ratio_adjust = 1.0;
-
     static size_t motif_width = 8;   // minimum width of the motifs to discover
-    
     static size_t outputs = 1;       // number of outputs to print
-    
     static size_t n_changes = 1;
     static size_t n_iterations = 100;
-
     static const float required_improvement = 1e-6;
     
     /****************** COMMAND LINE OPTIONS ********************/
-    static struct poptOption optionsTable[] = {
-      { "zoops", 'z',
-	POPT_ARG_NONE, &ZOOPS, 0, "use the ZOOPS model (default: hybrid)"
-      },
-      { "tcm", 't',
-	POPT_ARG_NONE, &TCM, 0, "use the TCM model (default: hybrid)"
-      },
-      { "background", 'b', 
-	POPT_ARG_STRING, &bgfilename, 0, 
-	"background sequence file (FASTA format)" 
-      },
-      { "output", 'o', 
-	POPT_ARG_STRING, &outfilename, 0, 
-	"output file name (default: stdout)" 
-      },
-      { "number", 'n', 
-	POPT_ARG_INT | POPT_ARGFLAG_SHOW_DEFAULT, &outputs, 0, 
-	"number of motifs to produce." 
-      },
-      { "prefix", 'p', POPT_ARG_STRING | POPT_ARGFLAG_SHOW_DEFAULT, 
-	&accession_prefix, 0, 
-	"motif accession prefix" 
-      },
-      { "width", 'w', 
-	POPT_ARG_INT | POPT_ARGFLAG_SHOW_DEFAULT, &motif_width, 0,
-	"minimum desired motif width" 
-      },
-      { "bits", 'i', 
-	POPT_ARG_FLOAT, &bits, 0,
-	"min bits per column (default depends on width)"
-      },
-      { "granularity", 'g',
-	POPT_ARG_FLOAT | POPT_ARGFLAG_DOC_HIDDEN, &granularity, 0, 
-	"see documentation"
-      },
-      { "correction", 'c',
-	POPT_ARG_FLOAT | POPT_ARGFLAG_DOC_HIDDEN, &correction, 0,
-	"correction for 0 in matrices"
-      },
-      { "refine", 'r',
-	POPT_ARG_FLOAT, &refine_granularity, 0,
-	"refinement granularity (default depends on width)"
-      },
-      { "adjust", 'a',
-	POPT_ARG_FLOAT, &ratio_adjust, 0,
-	"adjust contribution of fg and bg"
-      },
-      { "changes", 'C',
-	POPT_ARG_INT | POPT_ARGFLAG_SHOW_DEFAULT, &n_changes, 0,
-	"changes per refinement"
-      },
-      { "iterations", 'I',
-	POPT_ARG_INT | POPT_ARGFLAG_DOC_HIDDEN, &n_iterations, 0,
-	"number of refinement iterations"
-      },
-      { "single-strand", '\0',
-	POPT_ARG_NONE, &singlestrand, 0,
-	"search only one strand"
-      },
-      { "verbose", 'v',
-	POPT_ARG_NONE, &VERBOSE, 0, "print more run information"
-      },
-      POPT_AUTOHELP POPT_TABLEEND
-    };
-       
-    /***************** GET COMMAND LINE ARGUMENTS *******************/
-    poptContext optCon = poptGetContext("dme2", argc, argv, optionsTable, 0);
-    poptSetOtherOptionHelp(optCon, "[OPTIONS] filename");
-    if (argc < 2) {
-      poptPrintHelp(optCon, stderr, 0);
+    OptionParser opt_parse(strip_path(argv[0]), "discriminating matrix "
+			   "enumeration for motif discovery",
+			   "<fasta-sequences>");
+    opt_parse.add_opt("zoops", 'z', "use the ZOOPS model (default: hybrid)", 
+		      false, ZOOPS);
+    opt_parse.add_opt("tcm", 't', "use the TCM model (default: hybrid)", 
+		      false, TCM);
+    opt_parse.add_opt("background", 'b', "background sequence file (FASTA format)",
+		      false, bgfilename);
+    opt_parse.add_opt("output", 'o', "output file name (default: stdout)",
+		      false, outfilename);
+    opt_parse.add_opt("number", 'n', "number of motifs to produce.",
+		      false, outputs);
+    opt_parse.add_opt("prefix", 'p', "motif accession prefix",
+		      false, accession_prefix);
+    opt_parse.add_opt("width", 'w', "motif width",
+		      false, motif_width);
+    opt_parse.add_opt("bits", 'i', "min bits per column (default depends on width)",
+		      false, bits);
+    // opt_parse.add_opt("granularity", 'g', "see documentation (advanced option)",
+    // 		      false, granularity);
+    // opt_parse.add_opt("correction", 'c', "correction for 0 in matrices",
+    // 		      false, correction);
+    // opt_parse.add_opt("refine", 'r', "refinement granularity (default depends on width)",
+    // 		      false, refine_granularity);
+    // opt_parse.add_opt("adjust", 'a', "adjust contribution of fg and bg",
+    // 		      false, ratio_adjust);
+    // opt_parse.add_opt("changes", 'c', "changes per refinement",
+    // 		      false, n_changes);
+    // opt_parse.add_opt("iterations", 'I', "number of refinement iterations",
+    // 		      false, n_iterations);
+    opt_parse.add_opt("single-strand", '\0', "search only one strand",
+		      false, singlestrand);
+    opt_parse.add_opt("verbose", 'v', "print more run info", false, VERBOSE);
+    
+    vector<string> leftover_args;
+    opt_parse.parse(argc, argv, leftover_args);
+    if (argc == 1 || opt_parse.help_requested()) {
+      cerr << opt_parse.help_message() << endl
+	   << opt_parse.about_message() << endl;
       return EXIT_SUCCESS;
     }
-    char c;
-    if ((c = poptGetNextOpt(optCon)) < -1) {
-      cerr << "dme2: bad argument "
-	   << poptBadOption(optCon, POPT_BADOPTION_NOALIAS) << ": "
-	   << poptStrerror(c) << endl;
-      return EXIT_FAILURE;
+    if (opt_parse.about_requested()) {
+      cerr << opt_parse.about_message() << endl;
+      return EXIT_SUCCESS;
     }
-    if (!poptPeekArg(optCon)) {
-      poptPrintHelp(optCon, stderr, 0);
-      return EXIT_FAILURE;
+    if (opt_parse.option_missing()) {
+      cerr << opt_parse.option_missing_message() << endl;
+      return EXIT_SUCCESS;
     }
-    else fgfilename = poptGetArg(optCon);
-    if (poptPeekArg(optCon)) {
-      cerr << "dme2: leftover argument " << poptGetArg(optCon) << endl;
-      return EXIT_FAILURE;
+    if (leftover_args.size() != 1) {
+      cerr << opt_parse.help_message() << endl;
+      return EXIT_SUCCESS;
     }
-    poptFreeContext(optCon);
-    /**********************************************************************/
+    const string fgfilename(leftover_args.front());
+    /****************** END COMMAND LINE OPTIONS *****************/
+    
     
     // make sure the parameters are sensible
     validate_parameters(motif_width, bits);
@@ -1000,7 +960,7 @@ main(int argc, const char **argv) {
 	throw SMITHLABException("ZOOPS and TCM options are incompatible");
       }
       preprocess_sequences_zoops(singlestrand,
-				 fgfilename, bgfilename,
+				 fgfilename.c_str(), bgfilename.c_str(),
 				 fgnames, original_foreground, foreground,
 				 bgnames, original_background, background, 
 				 base_comp, fg_bg_ratio);
@@ -1019,7 +979,7 @@ main(int argc, const char **argv) {
     /* TCM: Two compenent mixture (0-to-many occurrences per sequence */
     else if (TCM) {
       preprocess_sequences_tcm(singlestrand,
-			       fgfilename, bgfilename,
+			       fgfilename.c_str(), bgfilename.c_str(),
 			       fgnames, original_foreground, foreground,
 			       bgnames, original_background, background, 
 			       base_comp, fg_bg_ratio);
@@ -1037,7 +997,7 @@ main(int argc, const char **argv) {
     }
     else { // HYBRID
       preprocess_sequences_zoops(singlestrand,
-				 fgfilename, bgfilename,
+				 fgfilename.c_str(), bgfilename.c_str(),
 				 fgnames, original_foreground, foreground,
 				 bgnames, original_background, background, 
 				 base_comp, fg_bg_ratio);
@@ -1095,10 +1055,11 @@ main(int argc, const char **argv) {
       cerr << ". done." << endl;
     
     // prepare the output stream for motifs
-    ostream* motifout = (outfilename) ? new ofstream(outfilename) : &cout;
-    copy(motifs.begin(), motifs.end(),
-	 ostream_iterator<Motif>(*motifout, "\n"));
-    if (motifout != &cout) delete motifout;
+
+    std::ofstream of;
+    if (!outfilename.empty()) of.open(outfilename.c_str());
+    std::ostream out(outfilename.empty() ? cout.rdbuf() : of.rdbuf());
+    copy(motifs.begin(), motifs.end(), ostream_iterator<Motif>(out, "\n"));
   }
   catch (SMITHLABException &e) {
     cerr << e.what() << endl;

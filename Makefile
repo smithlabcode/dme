@@ -19,12 +19,11 @@
 # 
 
 PROGS = dme2
-LIBS = -lpopt
 CXX = g++
 CFLAGS = -Wall -O2
 DEBUGFLAGS = -g
 
-INCLUDEDIRS = $(HOME)/include $(SMITHLAB_CPP)
+INCLUDEDIRS = $(SMITHLAB_CPP)
 INCLUDEARGS = $(addprefix -I ,$(INCLUDEDIRS))
 LIBDIR = $(HOME)/lib
 
