@@ -48,7 +48,7 @@ endif
 
 all:	$(PROGS)
 
-dme2:	dme2.o dme_tcm_workspace.o dme_zoops_workspace.o CTSet.o \
+dme2:	dme2.cpp dme_tcm_workspace.o dme_zoops_workspace.o CTSet.o \
 	$(CREAD_OBJS)
 	$(CXX) $(CFLAGS) -o $@ $^ $(LIBS) $(INCLUDEARGS) -L$(LIBDIR)
 
