@@ -639,8 +639,8 @@ get_base_comp(const vector<string>& sequences, vector<float>& base_comp) {
 
 void
 preprocess_sequences_zoops(const bool single_strand,
-			   const char *fgfilename, 
-			   const char *bgfilename, 
+			   const string &fgfilename, 
+			   const string &bgfilename, 
 			   vector<string> &fgnames, 
 			   vector<string> &original_foreground, 
 			   vector<string> &foreground,
@@ -661,7 +661,7 @@ preprocess_sequences_zoops(const bool single_strand,
   get_base_comp(original_foreground, fg_base_comp);
   const size_t fg_length = effective_sequence_length(original_foreground);
   
-  if (bgfilename) {
+  if (!bgfilename.empty()) {
     // read bg sequences
     read_fasta_file(bgfilename, bgnames, original_background);
     
@@ -751,7 +751,8 @@ prepare_motif_tcm(const string &name,
 
 void
 preprocess_sequences_tcm(const bool single_strand,
-			 const char *fgfilename, const char *bgfilename, 
+			 const string &fgfilename, 
+			 const string &bgfilename, 
 			 vector<string> &fgnames, 
 			 vector<string> &original_foreground, 
 			 vector<string> &foreground,
@@ -771,7 +772,7 @@ preprocess_sequences_tcm(const bool single_strand,
   get_base_comp(original_foreground, fg_base_comp);
   const size_t fg_length = effective_sequence_length(original_foreground);
 	 
-  if (bgfilename) {
+  if (!bgfilename.empty()) {
     // read bg sequences
     read_fasta_file(bgfilename, bgnames, original_background);
     
@@ -960,7 +961,7 @@ main(int argc, const char **argv) {
 	throw SMITHLABException("ZOOPS and TCM options are incompatible");
       }
       preprocess_sequences_zoops(singlestrand,
-				 fgfilename.c_str(), bgfilename.c_str(),
+				 fgfilename, bgfilename,
 				 fgnames, original_foreground, foreground,
 				 bgnames, original_background, background, 
 				 base_comp, fg_bg_ratio);
@@ -979,7 +980,7 @@ main(int argc, const char **argv) {
     /* TCM: Two compenent mixture (0-to-many occurrences per sequence */
     else if (TCM) {
       preprocess_sequences_tcm(singlestrand,
-			       fgfilename.c_str(), bgfilename.c_str(),
+			       fgfilename, bgfilename,
 			       fgnames, original_foreground, foreground,
 			       bgnames, original_background, background, 
 			       base_comp, fg_bg_ratio);
@@ -997,7 +998,7 @@ main(int argc, const char **argv) {
     }
     else { // HYBRID
       preprocess_sequences_zoops(singlestrand,
-				 fgfilename.c_str(), bgfilename.c_str(),
+				 fgfilename, bgfilename,
 				 fgnames, original_foreground, foreground,
 				 bgnames, original_background, background, 
 				 base_comp, fg_bg_ratio);
