@@ -21,6 +21,7 @@
 
 #include "Pattern.hpp"
 #include <fstream>
+#include <cstring>
 
 using std::string;
 using std::vector;
@@ -392,7 +393,7 @@ Pattern::ReadPatternLines(string file_name,
   while (!in.eof()) {
     char buffer[pattern_line_size+1];
     in.getline(buffer, pattern_line_size);
-    if (strlen(buffer) > 0) 
+    if (std::strlen(buffer) > 0) 
       lines.push_back(buffer);
   }
   if (lines.empty())
