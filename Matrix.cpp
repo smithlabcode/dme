@@ -21,6 +21,7 @@
 
 #include "Matrix.hpp"
 #include <numeric>
+#include <cstdio> // for sscanf!!!
 
 using std::accumulate;
 using std::fill;
@@ -70,7 +71,7 @@ Matrix::Matrix(vector<string> &s) {
   for (size_t i = 0; i < s.size(); ++i) {
     if (isdigit(s[i][0])) {
       float* column = new float[alphabet_size];
-      if (sscanf(s[i].c_str(), "%*d %f %f %f %f %*c", 
+      if (std::sscanf(s[i].c_str(), "%*d %f %f %f %f %*c", 
 		 column, &column[1], &column[2], &column[3]) - 
 	  alphabet_size != 0) {
 	delete column;
