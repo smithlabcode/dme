@@ -1,6 +1,14 @@
 ## Installation
 
+Cloning from github:
+```
+git clone https://github.com/smithlabcode/dme.git
+```
+If you have the tar.gz file:
+
+```
 tar -zxvf dme2_X.X.X.gz
+``
 
 Locate the smithlab_cpp directory (usually present inside the dme root directory). In terminal type:
 
