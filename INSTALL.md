@@ -22,4 +22,4 @@ To compile dme2, enter the program's root directory and execute
 make
 ```
 After successful compilation, dme2 binary can be found in the dme root directory. 
-See instruction in README.txt about how to run dme2.
+See instructions in README.txt about how to run dme2.
