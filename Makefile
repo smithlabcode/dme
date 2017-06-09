@@ -19,7 +19,7 @@
 # 
 
 PROGS = dme2
-CXX = g++
+CXX = g++ -std=c++11
 CFLAGS = -Wall -O2
 DEBUGFLAGS = -g
 

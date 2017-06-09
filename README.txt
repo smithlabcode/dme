@@ -51,34 +51,6 @@ each sequence.
 
 ########################################################################
 ========================================================================
-########################################################################
-
-INSTALLING DME2
-
-This release includes some files from the CREAD library (also
-developed by me). So that CREAD does not require installation in order
-to install and run DME2, the required files have been included in a
-subdirectory of this archive (i.e. where this file should be located).
-Hopefully the Makefile will work to build them as needed, but I
-haven't tested many platforms. To compile DME2, just do the following:
-
-$ tar -zxvf dme2_beta_2008_05_26.tgz
-$ cd dme2_beta_2008_05_26
-$ make
-
-That should be all you have to do. A binary named "dme2" should be
-created, and can be moved around. NOTE: currently DME2 requires the
-GNU popt library to be installed and for the headers to be visible
-(i.e. in some sensible location) when you try to compile
-DME2. Hopefully I will replace popt sometime soon, but I like popt...
-
-Also, although all the C++ used in DME2 is standard (AFAIK), the GCC
-compilers older than ~3.4 will not compile it because they are not
-compliant.
-
-########################################################################
-========================================================================
-########################################################################
 
 SELECTING BACKGROUND SEQUENCE SETS
 
