@@ -23,6 +23,15 @@ CXX = g++ -std=c++11
 CFLAGS = -Wall -O2
 DEBUGFLAGS = -g
 
+# check if a global copy of smithlab_cpp cannot be found and try to
+# use a copy that is in the current directory
+ifndef SMITHLAB_CPP
+SMITHLAB_CPP=$(abspath $(dir $(MAKEFILE_LIST)))/smithlab_cpp
+ifeq ("$(wildcard $(SMITHLAB_CPP))","")
+$(error SMITHLAB_CPP not set and smithlab_cpp not found)
+endif
+endif
+
 INCLUDEDIRS = $(SMITHLAB_CPP)
 INCLUDEARGS = $(addprefix -I ,$(INCLUDEDIRS))
 
