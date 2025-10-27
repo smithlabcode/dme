@@ -762,7 +762,7 @@ validate_parameters(size_t &motif_width, float &bits) {
 }  // END validate_parameters()
 
 int
-main(int argc, const char **argv) {
+main(int argc, char *argv[]) {
 
   try {
 
