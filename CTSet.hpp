@@ -33,45 +33,55 @@ struct DMEPath {
 
 class CTSet {
 public:
-  CTSet(const float *, float, const std::vector<float> &base_comp,
-	const float correction = 1e-10);
+  CTSet(const std::vector<float> &col, const float newgran,
+        const std::vector<float> &base_comp, const float correction = 1e-10);
+  CTSet(const Column &col, const float newgran,
+        const std::vector<float> &base_comp, const float correction = 1e-10);
   CTSet(const float granularity, const std::vector<float> &base_comp,
-	const float correction = 1e-10);
+        const float correction = 1e-10);
   CTSet(const float granularity, const std::vector<float> &base_comp,
-	const size_t n_sites);
-  
-  size_t size() const {return types.size();}
-  
-  std::vector<std::vector<float> > get_matrix() const {return scoremat;}
-  std::vector<float> get_bits() const {return bits;}
-  
-  Matrix path_to_matrix(const DMEPath &path) const;
-  
+        const size_t n_sites);
+
+  size_t
+  size() const {
+    return types.size();
+  }
+
+  std::vector<std::vector<float>>
+  get_matrix() const {
+    return scoremat;
+  }
+
+  std::vector<float>
+  get_bits() const {
+    return bits;
+  }
+
+  Matrix
+  path_to_matrix(const DMEPath &path) const;
+
   static Matrix
-  path_to_matrix(const DMEPath &path,
-		 const std::vector<CTSet> &column_types);
-  
+  path_to_matrix(const DMEPath &path, const std::vector<CTSet> &column_types);
+
   static float
-  get_bits(const std::vector<float> &col, 
-	   const std::vector<float> &base_comp);
-  
+  get_bits(const std::vector<float> &col, const std::vector<float> &base_comp);
+
 private:
-  std::vector<std::vector<float> > types;
-  std::vector<std::vector<float> > scoremat;
+  std::vector<std::vector<float>> types;
+  std::vector<std::vector<float>> scoremat;
   std::vector<float> bits;
-  
-  void sort_types(const std::vector<float> &base_comp);
-  size_t generate_column(const size_t volume, const size_t max_volume, 
-			 const size_t depth, size_t index, std::vector<float>& v);
-  
+
+  void
+  sort_types(const std::vector<float> &base_comp);
+  size_t
+  generate_column(const size_t volume, const size_t max_volume,
+                  const size_t depth, size_t index, std::vector<float> &v);
+
   static const size_t n_degen_nucs = 15;
   static float fixed_matrix[15][4];
-  
-  void build_scoremat(const std::vector<float> &base_comp, 
-		      const float correction);
-  //   void build_scoremat(const std::vector<float> &base_comp, 
-  // 		      const size_t n_sites);
-  
+
+  void
+  build_scoremat(const std::vector<float> &base_comp, const float correction);
 };
 
 #endif
