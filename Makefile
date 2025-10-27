@@ -36,7 +36,7 @@ $(PROGS): $(addprefix smithlab_cpp/, GenomicRegion.o smithlab_os.o \
 	smithlab_utils.o OptionParser.o)
 
 %.o: %.cpp %.hpp
-	$(CXX) $(CXXFLAGS) -c $< $(INCLUDEARGS)
+	$(CXX) $(CXXFLAGS) -c -o $@ $< $(INCLUDEARGS)
 
 dme2: dme2.cpp dme_tcm_workspace.o dme_zoops_workspace.o CTSet.o \
 	ScoringMatrix.o Matrix.o
