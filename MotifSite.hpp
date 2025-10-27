@@ -22,63 +22,87 @@
 #ifndef MOTIFSITE_HPP
 #define MOTIFSITE_HPP
 
-#include "Pattern.hpp"
+#include <cstdint>
+#include <ostream>
+#include <string>
 
-class MotifSite {
-private:
-  
-  // static const char* valid_orientations = "pn";
-  // static const size_t n_valid_orientations = 2;
-  
+struct MotifSite {
   std::string site;
   std::string seq_name;
   int start;
-  size_t length;
+  std::uint32_t length;
   std::string gaps;
   char orientation;
   float score;
 
-  bool is_valid_orientation(char c);
-  
-public:
-  MotifSite(std::string s, std::string sn, int st, 
-	    size_t l, std::string g, char o, float sc) : 
-    site(s), seq_name(sn), start(st), length(l), gaps(g), 
-    orientation(o), score(sc) {}
-  
-  MotifSite(std::string s, std::string sn, std::string st, 
-	    std::string l, std::string g, std::string o, std::string sc);
-  MotifSite(std::string);
-  std::string tostring() const;
-  friend std::ostream& operator<<(std::ostream &s, const MotifSite &bs) {
-    return s << bs.tostring();
+  bool
+  is_valid_orientation(char c);
+
+  MotifSite(std::string s, std::string sn, int st, std::uint32_t l,
+            std::string g, char o, float sc) :
+    site(s), seq_name(sn), start(st), length(l), gaps(g), orientation(o),
+    score(sc) {}
+
+  std::string
+  get_site() const {
+    return site;
   }
-  
-  std::string get_site() const {return site;}
-  std::string get_seq_name() const {return seq_name;}
-  std::string get_gaps() const {return gaps;}
-  char get_orientation() const {return orientation;}
-  bool negstrand() const {return orientation == 'n';}
-  bool posstrand() const {return orientation == 'p';}
-  float get_score() const{return score;}
+  std::string
+  get_seq_name() const {
+    return seq_name;
+  }
+  std::string
+  get_gaps() const {
+    return gaps;
+  }
+  char
+  get_orientation() const {
+    return orientation;
+  }
+  bool
+  negstrand() const {
+    return orientation == 'n';
+  }
+  bool
+  posstrand() const {
+    return orientation == 'p';
+  }
+  float
+  get_score() const {
+    return score;
+  }
 
-  int get_start() const {return start;}
-  size_t get_length() const {return length;}
+  int
+  get_start() const {
+    return start;
+  }
 
-  void set_score(float s) {score = s;}
-  bool operator<(const MotifSite& ms) const;
-  bool operator==(const MotifSite& ms) const;
-  
+  std::uint32_t
+  get_length() const {
+    return length;
+  }
+
+  void
+  set_score(float s) {
+    score = s;
+  }
+  // bool
+  // operator<(const MotifSite &ms) const;
+  // bool
+  // operator==(const MotifSite &ms) const;
 };
 
-/*!
-   \class InvalidMotifSiteException
-   \brief Exception class for handling invalid motif site exceptions
-*/
-class InvalidMotifSiteException : public PatternSiteException {
-public:
-  //! Constructor that initializes the message
-  InvalidMotifSiteException(const std::string m) : PatternSiteException(m) {}
-};
+inline std::ostream &
+operator<<(std::ostream &o, const MotifSite &s) {
+  // clang-format off
+  return o << s.site << "; "
+          << s.seq_name << "; "
+          << s.start << "; "
+          << s.length << "; "
+          << s.gaps << "; "
+          << s.orientation << "; "
+          << s.score;
+  // clang-format on
+}
 
 #endif
