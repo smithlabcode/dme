@@ -18,8 +18,6 @@
 
 #include "dme2_common.hpp"
 
-#include "smithlab_utils.hpp"
-
 #include <array>
 #include <cstdint>
 #include <string>

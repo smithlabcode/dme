@@ -19,6 +19,7 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <iomanip>
 #include <numeric>
 
 std::string
