@@ -19,8 +19,6 @@
 #ifndef DME_TCM_WORKSPACE_HPP
 #define DME_TCM_WORKSPACE_HPP
 
-#include <smithlab_utils.hpp>
-
 #include "CTSet.hpp"
 #include "Matrix.hpp"
 #include "ScoringMatrix.hpp"

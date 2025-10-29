@@ -22,7 +22,7 @@
 
 #include "dme2_common.hpp"
 
-#include <smithlab_utils.hpp>
+#include <cmath>
 
 using std::max;
 using std::min;
@@ -88,7 +88,7 @@ dme_tcm_lextree::insert(const std::string::const_iterator seq,
                         const size_t depth, const size_t motif_width,
                         const float val) {
   if (depth < motif_width) {
-    const size_t index = base2int(*seq);
+    const size_t index = encode_base[static_cast<char>(*seq)];
     if (child == 0)
       allocate_child_ptrs();
     if (child[index] == 0)
@@ -388,7 +388,7 @@ dme_tcm_workspace::dme_tcm_workspace(const std::vector<std::string> &foreground,
   nodes = std::vector<std::vector<dme_tcm_lextree *>>(motif_width + 1);
   for (size_t i = 0; i <= motif_width; ++i) {
     const size_t max_frontier_size =
-      min(total_sites, static_cast<size_t>(pow(alphabet_size, i)));
+      min(total_sites, static_cast<size_t>(std::pow(alphabet_size, i)));
     score[i] = std::vector<float>(max_frontier_size);
     nodes[i] = std::vector<dme_tcm_lextree *>(max_frontier_size);
   }
