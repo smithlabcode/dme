@@ -18,9 +18,8 @@
 #include "Matrix.hpp"
 #include "dme2_common.hpp"
 
-#include "smithlab_utils.hpp"
-
 #include <array>
+#include <cmath>
 #include <cstdlib>
 #include <numeric>
 #include <sstream>
