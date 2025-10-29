@@ -17,9 +17,7 @@
 #
 
 PROGS = dme2
-CXX = g++ -std=c++17
-CXXFLAGS = -Wall
-DEBUGFLAGS = -g
+CXXFLAGS = -std=c++23 -Wall
 
 INCLUDEDIRS = smithlab_cpp
 INCLUDEARGS = $(addprefix -I ,$(INCLUDEDIRS))
