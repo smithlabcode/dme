@@ -19,8 +19,6 @@
 #ifndef DME_ZOOPS_WORKSPACE_HPP
 #define DME_ZOOPS_WORKSPACE_HPP
 
-#include <smithlab_utils.hpp>
-
 #include "CTSet.hpp"
 #include "ScoringMatrix.hpp"
 

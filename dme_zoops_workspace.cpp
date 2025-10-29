@@ -22,6 +22,8 @@
 #include "Matrix.hpp"
 #include "dme2_common.hpp"
 
+#include <cmath>
+
 /* convert column types to corresponding scoring matrix columns */
 static float
 complement_scoremat(const std::vector<std::vector<float>> coltypes,
@@ -74,19 +76,19 @@ struct dme_zoops_lextree {
   dme_zoops_lextree **child{nullptr};
 };
 
-/* allocate space for the array of children pointers of a dme_zoops_lextree */
+// allocate space for the array of children pointers of a dme_zoops_lextree
 void
 dme_zoops_lextree::allocate_child_ptrs() {
   child = new dme_zoops_lextree *[alphabet_size];
   std::fill_n(child, alphabet_size, static_cast<dme_zoops_lextree *>(0));
 }
 
-/* insert a sequence below a subtree */
+// insert a sequence below a subtree
 void
 dme_zoops_lextree::insert(const std::string::const_iterator seq,
                           const size_t depth, const size_t motif_width) {
   if (depth < motif_width) {
-    const size_t index = base2int(*seq);
+    const size_t index = encode_base[static_cast<char>(*seq)];
     if (child == 0)
       allocate_child_ptrs();
     if (child[index] == 0)
@@ -95,8 +97,7 @@ dme_zoops_lextree::insert(const std::string::const_iterator seq,
   }
 }
 
-/* build a dme_zoops_lextree from a sets of foreground and background sequences
- */
+// build a dme_zoops_lextree from a sets of foreground and background sequences
 void
 dme_zoops_lextree::build(const std::string &sequence,
                          const size_t motif_width) {
@@ -111,7 +112,7 @@ dme_zoops_lextree::build(const std::string &sequence,
   }
 }
 
-/* recursively free space used by a lexicographic tree */
+// recursively free space used by a lexicographic tree
 dme_zoops_lextree::~dme_zoops_lextree() {
   if (child) {
     for (size_t i = 0; i < alphabet_size; ++i)
@@ -453,7 +454,7 @@ dme_zoops_workspace::dme_zoops_workspace(
     for (size_t j = 0; j < fgsize; ++j) {
       const size_t max_frontier_size =
         std::min(foreground[j].length(),
-                 static_cast<size_t>(pow(alphabet_size, i))) +
+                 static_cast<size_t>(std::pow(alphabet_size, i))) +
         1;
       fgscore[i][j] = std::vector<float>(max_frontier_size);
       fgnodes[i][j] = std::vector<dme_zoops_lextree *>(max_frontier_size);
