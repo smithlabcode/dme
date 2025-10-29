@@ -1,47 +1,108 @@
-/* Copyright (C) 2012-2025 Andrew D Smith
+/* MIT License
  *
- * Author: Andrew D Smith
+ * Copyright (c) 2025 Andrew D Smith
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the Free
- * Software Foundation; either version 2 of the License, or (at your option)
- * any later version.
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
  *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc., 51
- * Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ * DEALINGS IN THE SOFTWARE.
  */
 
-#include "dme2_common.hpp"
+static constexpr auto about = R"(dme2
+
+Discriminating matrix enumeration for motif discovery.
+)";
 
 #include "CTSet.hpp"
 #include "Matrix.hpp"
 #include "Motif.hpp"
+#include "MotifSite.hpp"
 #include "ScoringMatrix.hpp"
+#include "dme2_common.hpp"
 #include "dme_tcm_workspace.hpp"
 #include "dme_zoops_workspace.hpp"
 
-#include <OptionParser.hpp>
-#include <smithlab_os.hpp>
-#include <smithlab_utils.hpp>
+#include "CLI11.hpp"
 
+#include <algorithm>
+#include <array>
+#include <cctype>
+#include <cmath>
+#include <cstdint>
+#include <cstdlib>
+#include <exception>
 #include <fstream>
 #include <iomanip>
+#include <iostream>
+#include <iterator>
+#include <limits>
 #include <numeric>
+#include <print>
+#include <stdexcept>
+#include <string>
+#include <vector>
 
 static bool VERBOSE = false;
+
+[[nodiscard]] static inline auto
+revcomp(std::string s) -> std::string {
+  std::transform(std::cbegin(s), std::cend(s), std::begin(s),
+                 [](const auto x) { return get_complement(x); });
+  std::reverse(std::begin(s), std::end(s));
+  return s;
+}
+
+static auto
+read_fasta(const std::string &filename, std::vector<std::string> &names,
+           std::vector<std::string> &sequences) -> void {
+  std::ifstream in(filename);
+  if (!in)
+    throw std::runtime_error("cannot open input file " + filename);
+
+  names.clear();
+  sequences.clear();
+
+  std::string line;
+  while (getline(in, line)) {
+    if (line[0] == '>') {
+      const auto first_space = line.find_first_of(" \t", 1);
+      if (first_space == std::string::npos)
+        names.push_back(line.substr(1));
+      else
+        names.push_back(
+          std::string(std::cbegin(line) + 1,
+                      std::cbegin(line) + line.find_first_of(" \t", 1)));
+      sequences.push_back(std::string());
+    }
+    else
+      sequences.back() += line;
+  }
+  sequences.back() += line;
+  for (auto &i : sequences)
+    std::transform(std::cbegin(i), std::cend(i), std::begin(i),
+                   [](const char c) { return std::toupper(c); });
+}
 
 void
 get_seeds_zoops(const bool single_strand,
                 const std::vector<std::string> &foreground,
                 const std::vector<std::string> &background,
-                const std::vector<float> &base_comp, const size_t motif_width,
-                const size_t outputs, const float granularity, const float bits,
+                const std::vector<float> &base_comp,
+                const std::size_t motif_width, const std::size_t outputs,
+                const float granularity, const float bits,
                 const float correction, const float adjustment,
                 std::vector<Matrix> &seeds) {
   static constexpr auto seeds_progress_prefix = "obtaining seeds  ";
@@ -50,7 +111,7 @@ get_seeds_zoops(const bool single_strand,
 
   CTSet cts(granularity, base_comp, correction);
 
-  for (size_t i = 0; i < outputs; ++i) {
+  for (std::size_t i = 0; i < outputs; ++i) {
     if (VERBOSE)
       std::cerr << "\r" << seeds_progress_prefix << i << "/" << outputs;
     const DMEPath path(
@@ -72,32 +133,32 @@ get_seeds_zoops(const bool single_strand,
 }
 
 void
-refine_matrix_zoops(dme_zoops_workspace &ws, const size_t motif_width,
+refine_matrix_zoops(dme_zoops_workspace &ws, const std::size_t motif_width,
                     const float granularity, const float information,
-                    const std::vector<float> &base_comp, const size_t n_changes,
-                    const size_t n_iterations, const float required_improvement,
+                    const std::vector<float> &base_comp,
+                    const std::size_t n_changes, const std::size_t n_iterations,
+                    const float required_improvement,
                     const std::string &progress_prefix, Matrix &matrix) {
 
   float score = 0, prev_score = 0, improvement = 1;
 
-  for (size_t i = 0; i < n_iterations && improvement > required_improvement;
-       ++i) {
-
+  for (std::size_t i = 0;
+       i < n_iterations && improvement > required_improvement; ++i) {
     prev_score = score;
 
     std::vector<CTSet> refined_cts;
-    for (size_t j = 0; j < matrix.width; ++j)
-      refined_cts.push_back(CTSet(matrix[j], granularity, base_comp));
+    for (std::size_t j = 0; j < matrix.width; ++j)
+      refined_cts.emplace_back(matrix[j], granularity, base_comp);
 
-    std::vector<size_t> c_count(std::size(refined_cts));
+    std::vector<std::size_t> c_count(std::size(refined_cts));
     std::transform(std::cbegin(refined_cts), std::cend(refined_cts),
                    std::begin(c_count),
-                   [&](const auto &x) { return x.size(); });
+                   [&](const auto &x) { return std::size(x); });
 
-    std::vector<std::vector<std::vector<float>>> matrix_array(
-      refined_cts.size());
-    std::vector<std::vector<float>> refined_bits(refined_cts.size());
-    for (size_t j = 0; j < refined_cts.size(); ++j) {
+    const auto refined_cts_sz = std::size(refined_cts);
+    std::vector<std::vector<std::vector<float>>> matrix_array(refined_cts_sz);
+    std::vector<std::vector<float>> refined_bits(refined_cts_sz);
+    for (std::size_t j = 0; j < refined_cts_sz; ++j) {
       matrix_array[j] = refined_cts[j].get_matrix();
       refined_bits[j] = refined_cts[j].get_bits();
     }
@@ -124,20 +185,20 @@ refine_matrix_zoops(dme_zoops_workspace &ws, const size_t motif_width,
 }
 
 void
-refine_matrices_zoops(const bool single_strand,
-                      const std::vector<std::string> &foreground,
-                      const std::vector<std::string> &background,
-                      const size_t motif_width, const float refine_granularity,
-                      const float bits, const std::vector<float> &base_comp,
-                      const size_t n_changes, const size_t n_iterations,
-                      const float required_improvement, const float correction,
-                      const float adjustment, std::vector<Matrix> &seeds) {
+refine_matrices_zoops(
+  const bool single_strand, const std::vector<std::string> &foreground,
+  const std::vector<std::string> &background, const std::size_t motif_width,
+  const float refine_granularity, const float bits,
+  const std::vector<float> &base_comp, const std::size_t n_changes,
+  const std::size_t n_iterations, const float required_improvement,
+  const float correction, const float adjustment, std::vector<Matrix> &seeds) {
   static const char *refining_progress_prefix = "refining motifs  ";
 
   dme_zoops_workspace ws(foreground, background, motif_width, adjustment);
-  for (size_t i = 0; i < seeds.size(); ++i) {
-    const std::string progress_prefix(refining_progress_prefix + toa(i + 1) +
-                                      "/" + toa(seeds.size()));
+  for (std::size_t i = 0; i < seeds.size(); ++i) {
+    const std::string progress_prefix(refining_progress_prefix +
+                                      std::to_string(i + 1) + "/" +
+                                      std::to_string(std::size(seeds)));
     refine_matrix_zoops(ws, motif_width, refine_granularity, bits, base_comp,
                         n_changes, n_iterations, required_improvement,
                         progress_prefix, seeds[i]);
@@ -148,8 +209,9 @@ refine_matrices_zoops(const bool single_strand,
       ws.deactivate(sm.revcomp());
   }
   if (VERBOSE) {
-    const std::string message(refining_progress_prefix + toa(seeds.size()) +
-                              "/" + toa(seeds.size()));
+    const std::string message(refining_progress_prefix +
+                              std::to_string(seeds.size()) + "/" +
+                              std::to_string(seeds.size()));
     std::cerr << '\r' << std::left << std::setfill(' ') << std::setw(72)
               << message << '\n';
   }
@@ -159,10 +221,10 @@ void
 get_seeds_tcm(const bool single_strand,
               const std::vector<std::string> &foreground,
               const std::vector<std::string> &background,
-              const std::vector<float> &base_comp, const size_t motif_width,
-              const size_t outputs, const float granularity, const float bits,
-              const float correction, const float adjustment,
-              std::vector<Matrix> &seeds) {
+              const std::vector<float> &base_comp,
+              const std::size_t motif_width, const std::size_t outputs,
+              const float granularity, const float bits, const float correction,
+              const float adjustment, std::vector<Matrix> &seeds) {
 
   static const char *seeds_progress_prefix = "obtaining seeds  ";
 
@@ -170,7 +232,7 @@ get_seeds_tcm(const bool single_strand,
   // construct the column-type set
   CTSet cts(granularity, base_comp, correction);
 
-  for (size_t i = 0; i < outputs; ++i) {
+  for (std::size_t i = 0; i < outputs; ++i) {
     if (VERBOSE)
       std::cerr << "\r" << seeds_progress_prefix << i << "/" << outputs;
     const DMEPath path(ws.run_dme_tcm(cts.get_matrix(), cts.get_bits(), bits));
@@ -191,24 +253,25 @@ get_seeds_tcm(const bool single_strand,
 }
 
 void
-refine_matrix_tcm(dme_tcm_workspace &ws, const size_t motif_width,
+refine_matrix_tcm(dme_tcm_workspace &ws, const std::size_t motif_width,
                   const float granularity, const float information,
-                  const std::vector<float> &base_comp, const size_t n_changes,
-                  const size_t n_iterations, const float required_improvement,
+                  const std::vector<float> &base_comp,
+                  const std::size_t n_changes, const std::size_t n_iterations,
+                  const float required_improvement,
                   const std::string &progress_prefix, Matrix &matrix) {
 
   float score = 0, prev_score = 0, improvement = 1;
 
-  for (size_t i = 0; i < n_iterations && improvement > required_improvement;
-       ++i) {
+  for (std::size_t i = 0;
+       i < n_iterations && improvement > required_improvement; ++i) {
 
     prev_score = score;
 
     std::vector<CTSet> refined_cts;
-    for (size_t j = 0; j < matrix.width; ++j)
+    for (std::size_t j = 0; j < matrix.width; ++j)
       refined_cts.push_back(CTSet(matrix[j], granularity, base_comp));
 
-    std::vector<size_t> c_count(std::size(refined_cts));
+    std::vector<std::size_t> c_count(std::size(refined_cts));
     std::transform(std::cbegin(refined_cts), std::cend(refined_cts),
                    std::begin(c_count),
                    [&](const auto &x) { return x.size(); });
@@ -216,7 +279,7 @@ refine_matrix_tcm(dme_tcm_workspace &ws, const size_t motif_width,
     std::vector<std::vector<std::vector<float>>> matrix_array(
       refined_cts.size());
     std::vector<std::vector<float>> refined_bits(refined_cts.size());
-    for (size_t j = 0; j < refined_cts.size(); ++j) {
+    for (std::size_t j = 0; j < refined_cts.size(); ++j) {
       matrix_array[j] = refined_cts[j].get_matrix();
       refined_bits[j] = refined_cts[j].get_bits();
     }
@@ -245,17 +308,19 @@ void
 refine_matrices_tcm(const bool single_strand,
                     const std::vector<std::string> &foreground,
                     const std::vector<std::string> &background,
-                    const size_t motif_width, const float refine_granularity,
-                    const float bits, const std::vector<float> &base_comp,
-                    const size_t n_changes, const size_t n_iterations,
+                    const std::size_t motif_width,
+                    const float refine_granularity, const float bits,
+                    const std::vector<float> &base_comp,
+                    const std::size_t n_changes, const std::size_t n_iterations,
                     const float required_improvement, const float correction,
                     const float adjustment, std::vector<Matrix> &seeds) {
   static const char *refining_progress_prefix = "refining motifs  ";
 
   dme_tcm_workspace ws(foreground, background, motif_width, adjustment);
-  for (size_t i = 0; i < seeds.size(); ++i) {
-    const std::string progress_prefix(refining_progress_prefix + toa(i + 1) +
-                                      "/" + toa(seeds.size()));
+  for (std::size_t i = 0; i < seeds.size(); ++i) {
+    const std::string progress_prefix(refining_progress_prefix +
+                                      std::to_string(i + 1) + "/" +
+                                      std::to_string(seeds.size()));
     refine_matrix_tcm(ws, motif_width, refine_granularity, bits, base_comp,
                       n_changes, n_iterations, required_improvement,
                       progress_prefix, seeds[i]);
@@ -266,16 +331,17 @@ refine_matrices_tcm(const bool single_strand,
       ws.deactivate(sm.revcomp());
   }
   if (VERBOSE) {
-    const std::string message(refining_progress_prefix + toa(seeds.size()) +
-                              "/" + toa(seeds.size()));
+    const std::string message(refining_progress_prefix +
+                              std::to_string(seeds.size()) + "/" +
+                              std::to_string(seeds.size()));
     std::cerr << '\r' << std::left << std::setfill(' ') << std::setw(72)
               << message << '\n';
   }
 }
 
-size_t
+std::size_t
 effective_sequence_length(const std::vector<std::string> &s) {
-  size_t length = 0;
+  std::size_t length = 0;
   for (std::vector<std::string>::const_iterator i = s.begin(); i != s.end();
        ++i)
     length += count_if(i->begin(), i->end(), &isvalid);
@@ -283,12 +349,12 @@ effective_sequence_length(const std::vector<std::string> &s) {
 }
 
 void
-mask(size_t width, size_t max_order, std::vector<std::string> &seqs) {
+mask(std::size_t width, std::size_t max_order, std::vector<std::string> &seqs) {
   const char masked_base = 'N';
-  for (size_t i = 1; i <= max_order; ++i)
-    for (size_t j = 0; j < seqs.size(); ++j) {
-      size_t rep = i;
-      for (size_t k = i; k < seqs[j].length(); ++k)
+  for (std::size_t i = 1; i <= max_order; ++i)
+    for (std::size_t j = 0; j < seqs.size(); ++j) {
+      std::size_t rep = i;
+      for (std::size_t k = i; k < seqs[j].length(); ++k)
         if (seqs[j][k] == seqs[j][k - i] && seqs[j][k] != masked_base &&
             k < seqs[j].length() - 1)
           rep++;
@@ -300,15 +366,16 @@ mask(size_t width, size_t max_order, std::vector<std::string> &seqs) {
     }
 }
 
-std::string
-degenerate_consensus(const Matrix &matrix) {
-  static const float correction = 0.0000000001;
-  static const char degenerate_bases[] = {
+[[nodiscard]] static auto
+degenerate_consensus(const Matrix &matrix) -> std::string {
+  static constexpr float correction = 0.0000000001;
+  static constexpr char degenerate_bases[] = {
     'A', 'C', 'G', 'T', 'M', 'R', 'W', 'S', 'Y', 'K', 'V', 'H', 'D', 'B', 'N',
   };
 
-  static const size_t n_degen_nucs = 15;
-  static float fixed_matrix[15][4] = {
+  // NOLINTBEGIN (*-c-arrays)
+  static constexpr std::size_t n_degen_nucs = 15;
+  static constexpr float fixed_matrix[15][4] = {
     {1.000, 0.000, 0.000, 0.000},  // A
     {0.000, 1.000, 0.000, 0.000},  // C
     {0.000, 0.000, 1.000, 0.000},  // G
@@ -325,14 +392,15 @@ degenerate_consensus(const Matrix &matrix) {
     {0.000, 0.333, 0.333, 0.333},  // B
     {0.250, 0.250, 0.250, 0.250}   // N
   };
+  // NOLINTEND (*-c-arrays)
 
   std::string consensus;
-  for (size_t i = 0; i < matrix.width; ++i) {
+  for (std::size_t i = 0; i < matrix.width; ++i) {
     float score = std::numeric_limits<float>::max();
-    size_t best = 0;
-    for (size_t j = 0; j < n_degen_nucs; ++j) {
+    std::size_t best = 0;
+    for (std::size_t j = 0; j < n_degen_nucs; ++j) {
       float temp_score = 0.0;
-      for (size_t k = 0; k < alphabet_size; ++k) {
+      for (std::size_t k = 0; k < alphabet_size; ++k) {
         const float matval =
           fixed_matrix[j][k] > 0 ? fixed_matrix[j][k] : correction;
         const float freq = matrix[i][k] > 0 ? matrix[i][k] : correction;
@@ -349,11 +417,11 @@ degenerate_consensus(const Matrix &matrix) {
 }
 
 struct Site {
-  size_t seq;
-  size_t pos;
+  std::size_t seq;
+  std::size_t pos;
   float score;
   bool strand;
-  Site(size_t se, size_t p, float sc, bool st) :
+  Site(std::size_t se, std::size_t p, float sc, bool st) :
     seq(se), pos(p), score(sc), strand(st) {}
   char
   strand_char() {
@@ -368,16 +436,16 @@ struct Site {
 Matrix
 get_counts_matrix(const std::vector<Site> &sites,
                   const std::vector<std::string> &seqs,
-                  const size_t motif_width) {
+                  const std::size_t motif_width) {
   std::vector<std::array<float, alphabet_size>> counts(motif_width);
-  for (size_t i = 0; i < motif_width; ++i)
+  for (std::size_t i = 0; i < motif_width; ++i)
     std::fill(std::begin(counts[i]), std::begin(counts[i]) + alphabet_size, 0);
   for (auto &s : sites) {
     std::string site = seqs[s.seq].substr(s.pos, motif_width);
     if (!s.strand)
       site = revcomp(site);
-    for (size_t j = 0; j < motif_width; ++j)
-      counts[j][base2int(site[j])]++;
+    for (std::size_t j = 0; j < motif_width; ++j)
+      counts[j][encode_base[static_cast<std::uint8_t>(site[j])]]++;
   }
   return Matrix(counts, motif_width);
 }
@@ -388,7 +456,7 @@ valid_base_id(int c) {
 }
 
 bool
-valid_subsequence(const int *offset, const size_t matwidth) {
+valid_subsequence(const int *offset, const std::size_t matwidth) {
   const auto valid_base_id_x = [](const auto c) {
     return c < static_cast<int>(alphabet_size) && c >= 0;
   };
@@ -398,9 +466,9 @@ valid_subsequence(const int *offset, const size_t matwidth) {
 
 float
 match_matrix(const ScoringMatrix &sm, const int *offset) {
-  const size_t width = sm.width;
+  const std::size_t width = sm.width;
   float score = 0;
-  for (size_t i = 0; i < width; ++i)
+  for (std::size_t i = 0; i < width; ++i)
     score += sm.matrix[i][offset[i]];
   return score;
 }
@@ -409,17 +477,18 @@ void
 get_sites_zoops(const std::vector<std::string> &sequences,
                 const ScoringMatrix &sm, const ScoringMatrix &smrc,
                 const bool singlestrand, std::vector<Site> &sites) {
-  const size_t matwidth = sm.width;
-  for (size_t i = 0; i < sequences.size(); ++i) {
+  const std::size_t matwidth = sm.width;
+  for (std::size_t i = 0; i < sequences.size(); ++i) {
     std::vector<int> helper(sequences[i].length());
-    std::transform(sequences[i].begin(), sequences[i].end(), helper.begin(),
-                   &base2int);
-    const size_t lim = std::size(sequences[i]) >= matwidth
-                         ? std::size(sequences[i]) - matwidth + 1
-                         : 0;
+    std::transform(
+      std::cbegin(sequences[i]), std::cend(sequences[i]), std::begin(helper),
+      [](const auto x) { return encode_base[static_cast<std::uint8_t>(x)]; });
+    const std::size_t lim = std::size(sequences[i]) >= matwidth
+                              ? std::size(sequences[i]) - matwidth + 1
+                              : 0;
     std::vector<Site> tied;
     float best_score = std::numeric_limits<float>::min();
-    for (size_t j = 0; j < lim; ++j) {
+    for (std::size_t j = 0; j < lim; ++j) {
       const int *offset = &helper[j];
       if (valid_subsequence(offset, matwidth)) {
         float score = match_matrix(sm, offset);
@@ -448,16 +517,17 @@ void
 get_sites_tcm(const std::vector<std::string> &sequences,
               const ScoringMatrix &sm, const ScoringMatrix &smrc,
               const bool singlestrand, std::vector<Site> &sites) {
-  const size_t matwidth = sm.width;
-  for (size_t i = 0; i < sequences.size(); ++i) {
+  const std::size_t matwidth = sm.width;
+  for (std::size_t i = 0; i < sequences.size(); ++i) {
 
     std::vector<int> helper(sequences[i].length());
-    std::transform(sequences[i].begin(), sequences[i].end(), helper.begin(),
-                   &base2int);
-    const size_t lim = std::size(sequences[i]) >= matwidth
-                         ? std::size(sequences[i]) - matwidth + 1
-                         : 0;
-    for (size_t j = 0; j < lim; ++j) {
+    std::transform(
+      std::cbegin(sequences[i]), std::cend(sequences[i]), std::begin(helper),
+      [](const auto x) { return encode_base[static_cast<std::uint8_t>(x)]; });
+    const std::size_t lim = std::size(sequences[i]) >= matwidth
+                              ? std::size(sequences[i]) - matwidth + 1
+                              : 0;
+    for (std::size_t j = 0; j < lim; ++j) {
       const int *offset = &helper[j];
       if (valid_subsequence(offset, matwidth)) {
         float score = match_matrix(sm, offset);
@@ -477,7 +547,7 @@ get_sites_tcm(const std::vector<std::string> &sequences,
 get_sites_zoops_score(const std::vector<Site> &sites) {
   float score = 0;
   float best_in_seq = -std::numeric_limits<float>::max();
-  for (size_t i = 0; i < sites.size(); ++i) {
+  for (std::size_t i = 0; i < sites.size(); ++i) {
     best_in_seq = std::max(sites[i].score, best_in_seq);
     if (i == sites.size() - 1 || sites[i].seq != sites[i + 1].seq) {
       score += best_in_seq;
@@ -525,8 +595,7 @@ prepare_motif_zoops(const std::string &name, const Matrix matrix,
   motif.info = matrix.info(base_comp) / matrix.width;
 
   // Set the sites
-  for (std::vector<Site>::iterator i = fg_sites.begin(); i != fg_sites.end();
-       ++i) {
+  for (auto i = std::begin(fg_sites); i != std::end(fg_sites); ++i) {
     std::string temp(fgseqs[i->seq].substr(i->pos, matrix.width));
     std::string site(i->strand ? temp : revcomp(temp));
     motif.add_site(MotifSite(site, fgnames[i->seq], i->pos, matrix.width, " ",
@@ -535,19 +604,19 @@ prepare_motif_zoops(const std::string &name, const Matrix matrix,
   return motif;
 }  // END prepare_motif_zoops()
 
-void
-get_base_comp(const std::vector<std::string> &sequences,
-              std::vector<float> &base_comp) {
-  std::vector<size_t> count(alphabet_size, 0);
-  for (std::vector<std::string>::const_iterator i = sequences.begin();
-       i != sequences.end(); ++i)
-    for (std::string::const_iterator j = i->begin(); j != i->end(); ++j)
-      if (isvalid(*j))
-        count[base2int(*j)]++;
-  const float total = std::accumulate(count.begin(), count.end(), 0.0);
-  base_comp.clear();
-  std::transform(count.begin(), count.end(), back_inserter(base_comp),
+[[nodiscard]] static auto
+get_base_comp(const std::vector<std::string> &sequences) -> std::vector<float> {
+  std::vector<std::size_t> count(alphabet_size, 0);
+  for (const auto &i : sequences)
+    for (const auto j : i)
+      if (isvalid(j))
+        count[encode_base[static_cast<std::uint8_t>(j)]]++;
+  const float total =
+    std::accumulate(std::cbegin(count), std::cend(count), 0.0f);
+  std::vector<float> base_comp(alphabet_size);
+  std::transform(std::cbegin(count), std::cend(count), std::begin(base_comp),
                  [&](const auto x) { return x / total; });
+  return base_comp;
 }
 
 void
@@ -563,38 +632,37 @@ preprocess_sequences_zoops(const bool single_strand,
                            std::vector<float> &base_comp, float &fg_bg_ratio) {
 
   // read fg sequences
-  read_fasta_file(fgfilename, fgnames, original_foreground);
+  read_fasta(fgfilename, fgnames, original_foreground);
 
-  static const size_t max_mask_order = 2;
-  static const size_t decoy_width = 8;
+  static const std::size_t max_mask_order = 2;
+  static const std::size_t decoy_width = 8;
   mask(decoy_width, max_mask_order, original_foreground);
 
-  std::vector<float> fg_base_comp;
-  get_base_comp(original_foreground, fg_base_comp);
-  const size_t fg_length = effective_sequence_length(original_foreground);
+  const auto fg_base_comp = get_base_comp(original_foreground);
+  const std::size_t fg_length = effective_sequence_length(original_foreground);
 
   if (!bgfilename.empty()) {
     // read bg sequences
-    read_fasta_file(bgfilename, bgnames, original_background);
+    read_fasta(bgfilename, bgnames, original_background);
 
     mask(decoy_width, max_mask_order, original_background);
 
-    std::vector<float> bg_base_comp;
-    get_base_comp(original_background, bg_base_comp);
-    const size_t bg_length = effective_sequence_length(original_background);
-    for (size_t i = 0; i < alphabet_size; ++i)
+    const auto bg_base_comp = get_base_comp(original_background);
+    const std::size_t bg_length =
+      effective_sequence_length(original_background);
+    for (std::size_t i = 0; i < alphabet_size; ++i)
       base_comp.push_back(
         (fg_length * fg_base_comp[i] + bg_length * bg_base_comp[i]) /
         (fg_length + bg_length));
 
     foreground = original_foreground;
     if (!single_strand)
-      for (size_t i = 0; i < original_foreground.size(); i++)
+      for (std::size_t i = 0; i < original_foreground.size(); i++)
         foreground[i] += (std::string("N") + revcomp(foreground[i]));
 
     background = original_background;
     if (!single_strand)
-      for (size_t i = 0; i < background.size(); i++)
+      for (std::size_t i = 0; i < background.size(); i++)
         background[i] += (std::string("N") + revcomp(background[i]));
 
     fg_bg_ratio = static_cast<float>(foreground.size()) / background.size();
@@ -603,7 +671,7 @@ preprocess_sequences_zoops(const bool single_strand,
     base_comp = fg_base_comp;
     foreground = original_foreground;
     if (!single_strand)
-      for (size_t i = 0; i < foreground.size(); ++i)
+      for (std::size_t i = 0; i < foreground.size(); ++i)
         foreground[i] += "N" + revcomp(foreground[i]);
   }
 
@@ -674,38 +742,37 @@ preprocess_sequences_tcm(const bool single_strand,
                          std::vector<float> &base_comp, float &length_ratio) {
 
   // read fg sequences
-  read_fasta_file(fgfilename, fgnames, original_foreground);
+  read_fasta(fgfilename, fgnames, original_foreground);
 
-  static const size_t max_mask_order = 2;
-  static const size_t decoy_width = 8;
+  static const std::size_t max_mask_order = 2;
+  static const std::size_t decoy_width = 8;
   mask(decoy_width, max_mask_order, original_foreground);
 
-  std::vector<float> fg_base_comp;
-  get_base_comp(original_foreground, fg_base_comp);
-  const size_t fg_length = effective_sequence_length(original_foreground);
+  const auto fg_base_comp = get_base_comp(original_foreground);
+  const std::size_t fg_length = effective_sequence_length(original_foreground);
 
   if (!bgfilename.empty()) {
     // read bg sequences
-    read_fasta_file(bgfilename, bgnames, original_background);
+    read_fasta(bgfilename, bgnames, original_background);
 
     mask(decoy_width, max_mask_order, original_background);
 
-    std::vector<float> bg_base_comp;
-    get_base_comp(original_background, bg_base_comp);
-    const size_t bg_length = effective_sequence_length(original_background);
-    for (size_t i = 0; i < alphabet_size; ++i)
+    const auto bg_base_comp = get_base_comp(original_background);
+    const std::size_t bg_length =
+      effective_sequence_length(original_background);
+    for (std::size_t i = 0; i < alphabet_size; ++i)
       base_comp.push_back(
         (fg_length * fg_base_comp[i] + bg_length * bg_base_comp[i]) /
         (fg_length + bg_length));
 
     foreground = original_foreground;
     if (!single_strand)
-      for (size_t i = 0; i < original_foreground.size(); i++)
+      for (std::size_t i = 0; i < original_foreground.size(); i++)
         foreground[i] += (std::string("N") + revcomp(foreground[i]));
 
     background = original_background;
     if (!single_strand)
-      for (size_t i = 0; i < background.size(); i++)
+      for (std::size_t i = 0; i < background.size(); i++)
         background[i] += (std::string("N") + revcomp(background[i]));
 
     length_ratio = static_cast<float>(fg_length) / bg_length;
@@ -714,20 +781,20 @@ preprocess_sequences_tcm(const bool single_strand,
     base_comp = fg_base_comp;
     foreground = original_foreground;
     if (!single_strand)
-      for (size_t i = 0; i < foreground.size(); ++i)
+      for (std::size_t i = 0; i < foreground.size(); ++i)
         foreground[i] += "N" + revcomp(foreground[i]);
   }
 }  // END preprocess_sequences()
 
 void
-validate_parameters(size_t &motif_width, float &bits) {
+validate_parameters(std::size_t &motif_width, float &bits) {
 
   struct ParamSet {
     int width;
     float bits;
   };
 
-  static const size_t max_motif_width = 17;
+  static const std::size_t max_motif_width = 17;
   // clang-format off
   const struct ParamSet param_set[] = {
     {0, 2.000},
@@ -754,7 +821,7 @@ validate_parameters(size_t &motif_width, float &bits) {
   // check to make sure the motif width is reasonable
   if (motif_width > max_motif_width || motif_width == 0)
     throw std::runtime_error("motif width must be at least 1 and less than " +
-                             toa(max_motif_width));
+                             std::to_string(max_motif_width));
 
   if (bits == std::numeric_limits<float>::max())
     bits = param_set[motif_width].bits;
@@ -768,6 +835,7 @@ main(int argc, char *argv[]) {
 
     static constexpr auto motif_prep_progress_prefix = "preparing motifs ";
 
+    std::string fgfilename;   // foreground sequences file
     std::string bgfilename;   // background sequences file
     std::string outfilename;  // output file
 
@@ -790,73 +858,44 @@ main(int argc, char *argv[]) {
     float correction = 1e-10;             // correction value to be added
                                           // to each matrix entry
     float ratio_adjust = 1.0;
-    size_t motif_width = 8;  // minimum width of the motifs to discover
-    size_t outputs = 1;      // number of outputs to print
-    size_t n_changes = 1;
-    size_t n_iterations = 100;
+    std::size_t motif_width = 8;  // minimum width of the motifs to discover
+    std::size_t outputs = 1;      // number of outputs to print
+    std::size_t n_changes = 1;
+    std::size_t n_iterations = 100;
     const float required_improvement = 1e-6;
 
-    /****************** COMMAND LINE OPTIONS ********************/
-    OptionParser opt_parse(strip_path(argv[0]),
-                           "discriminating matrix "
-                           "enumeration for motif discovery",
-                           "<fasta-sequences>");
-    opt_parse.add_opt("zoops", 'z', "use the ZOOPS model (default: hybrid)",
-                      false, ZOOPS);
-    opt_parse.add_opt("tcm", 't', "use the TCM model (default: hybrid)", false,
-                      TCM);
-    opt_parse.add_opt("background", 'b',
-                      "background sequence file (FASTA format)", false,
-                      bgfilename);
-    opt_parse.add_opt("output", 'o', "output file name (default: stdout)",
-                      false, outfilename);
-    opt_parse.add_opt("number", 'n', "number of motifs to produce.", false,
-                      outputs);
-    opt_parse.add_opt("prefix", 'p', "motif accession prefix", false,
-                      accession_prefix);
-    opt_parse.add_opt("width", 'w', "motif width", false, motif_width);
-    opt_parse.add_opt("bits", 'i',
-                      "min bits per column (default depends on width)", false,
-                      bits);
-    // opt_parse.add_opt("granularity", 'g', "see documentation (advanced
-    // option)",
-    //                false, granularity);
-    // opt_parse.add_opt("correction", 'c', "correction for 0 in matrices",
-    //                false, correction);
-    // opt_parse.add_opt("refine", 'r', "refinement granularity (default depends
-    // on width)",
-    //                false, refine_granularity);
-    // opt_parse.add_opt("adjust", 'a', "adjust contribution of fg and bg",
-    //                false, ratio_adjust);
-    // opt_parse.add_opt("changes", 'c', "changes per refinement",
-    //                false, n_changes);
-    // opt_parse.add_opt("iterations", 'I', "number of refinement iterations",
-    //                false, n_iterations);
-    opt_parse.add_opt("single-strand", '\0', "search only one strand", false,
-                      singlestrand);
-    opt_parse.add_opt("verbose", 'v', "print more run info", false, VERBOSE);
+    CLI::App app{about};
+    argv = app.ensure_utf8(argv);
+    // app.usage(usage);
 
-    std::vector<std::string> leftover_args;
-    opt_parse.parse(argc, argv, leftover_args);
-    if (argc == 1 || opt_parse.help_requested()) {
-      std::cerr << opt_parse.help_message() << '\n'
-                << opt_parse.about_message() << '\n';
-      return EXIT_SUCCESS;
+    // clang-format off
+    app.set_help_flag("-h,--help", "Print a detailed help message and exit");
+    app.add_flag("-z,--zoops", ZOOPS, "use the ZOOPS model (default: hybrid)");
+    app.add_flag("-t,--tcm", TCM, "use the TCM model (default: hybrid)");
+    app.add_option("-f,--foreground", fgfilename, "foreground sequence in FASTA format")
+      ->required()
+      ->option_text("FILE")
+      ->check(CLI::ExistingFile);
+    app.add_option("-b,--background", bgfilename, "background sequences in FASTA format")
+      ->option_text("FILE")
+      ->check(CLI::ExistingFile);
+    app.add_option("-o,--output", outfilename, "output file name")
+      ->option_text("FILE")
+      ->required();
+    app.add_option("-n,--number", outputs, "number of motifs to produce");
+    app.add_option("-p,--prefix", accession_prefix, "motif accession prefix");
+    app.add_option("-w,--width", motif_width, "motif width");
+    app.add_option("-i,--bits", bits, "min bits per column (default depends on width)");
+    app.add_option("--single-strand", singlestrand, "search only one strand");
+    app.add_flag("-v,--verbose", VERBOSE, "print more info");
+    // clang-format on
+
+    if (argc == 1) {
+      std::println("{}", app.help());
+      return EXIT_FAILURE;
     }
-    if (opt_parse.about_requested()) {
-      std::cerr << opt_parse.about_message() << '\n';
-      return EXIT_SUCCESS;
-    }
-    if (opt_parse.option_missing()) {
-      std::cerr << opt_parse.option_missing_message() << '\n';
-      return EXIT_SUCCESS;
-    }
-    if (leftover_args.size() != 1) {
-      std::cerr << opt_parse.help_message() << '\n';
-      return EXIT_SUCCESS;
-    }
-    const std::string fgfilename(leftover_args.front());
-    /****************** END COMMAND LINE OPTIONS *****************/
+
+    CLI11_PARSE(app, argc, argv);
 
     // make sure the parameters are sensible
     validate_parameters(motif_width, bits);
@@ -870,9 +909,8 @@ main(int argc, char *argv[]) {
 
     /* ZOOPS: Zero or one occurrence per sequence */
     if (ZOOPS) {
-      if (TCM) {
+      if (TCM)
         throw std::runtime_error("ZOOPS and TCM options are incompatible");
-      }
       preprocess_sequences_zoops(singlestrand, fgfilename, bgfilename, fgnames,
                                  original_foreground, foreground, bgnames,
                                  original_background, background, base_comp,
@@ -922,27 +960,27 @@ main(int argc, char *argv[]) {
 
     /* Turn matrices into motifs when ZOOPS model is used */
     if (!TCM) {
-      for (size_t i = 0; i < seeds.size(); ++i) {
+      for (std::size_t i = 0; i < seeds.size(); ++i) {
         if (VERBOSE)
           std::cerr << "\r" << motif_prep_progress_prefix << i + 1 << "/"
                     << seeds.size();
         motifs.push_back(prepare_motif_zoops(
-          accession_prefix + toa(i + 1), seeds[i], base_comp, correction,
-          original_foreground, fgnames, original_background, bgnames,
-          singlestrand, fg_bg_ratio));
+          accession_prefix + std::to_string(i + 1), seeds[i], base_comp,
+          correction, original_foreground, fgnames, original_background,
+          bgnames, singlestrand, fg_bg_ratio));
       }
     }
 
     /* Turn matrices into motifs when TCM model is used */
     else {
-      for (size_t i = 0; i < seeds.size(); ++i) {
+      for (std::size_t i = 0; i < seeds.size(); ++i) {
         if (VERBOSE)
           std::cerr << "\r" << motif_prep_progress_prefix << i + 1 << "/"
                     << seeds.size();
         motifs.push_back(prepare_motif_tcm(
-          accession_prefix + toa(i + 1), seeds[i], base_comp, correction,
-          original_foreground, fgnames, original_background, bgnames,
-          singlestrand, fg_bg_ratio));
+          accession_prefix + std::to_string(i + 1), seeds[i], base_comp,
+          correction, original_foreground, fgnames, original_background,
+          bgnames, singlestrand, fg_bg_ratio));
       }
     }
 
@@ -957,13 +995,7 @@ main(int argc, char *argv[]) {
     if (VERBOSE)
       std::cerr << ". done." << '\n';
 
-    // prepare the output stream for motifs
-
-    std::ofstream of;
-    if (!outfilename.empty())
-      of.open(outfilename);
-    std::ostream out(outfilename.empty() ? std::cout.rdbuf() : of.rdbuf());
-
+    std::ofstream out(outfilename);
     std::copy(std::cbegin(motifs), std::cend(motifs),
               std::ostream_iterator<Motif>(out, "\n"));
   }
