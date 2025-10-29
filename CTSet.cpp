@@ -21,9 +21,10 @@
 #include "CTSet.hpp"
 #include "dme2_common.hpp"
 
+#include <algorithm>
+#include <cmath>
 #include <cstring>
 #include <numeric>
-#include <smithlab_utils.hpp>
 
 using std::max;
 using std::pair;
@@ -54,7 +55,7 @@ CTSet::get_bits(const vector<float> &col, const vector<float> &base_comp) {
   float bits = 0;
   for (size_t i = 0; i < alphabet_size; ++i)
     if (col[i] > 0)
-      bits += col[i] * (log2(col[i]) - log2(base_comp[i]));
+      bits += col[i] * (std::log2(col[i]) - std::log2(base_comp[i]));
   return bits;
 }
 
@@ -173,10 +174,11 @@ CTSet::build_scoremat(const vector<float> &base_comp, const float correction) {
     float col_bits = 0;
     for (size_t j = 0; j < types[i].size(); j++) {
       scoremat[i][j] =
-        ((types[i][j] > 0.0) ? log2(types[i][j]) : log2(correction)) -
-        log2(base_comp[j]);
+        ((types[i][j] > 0.0) ? std::log2(types[i][j]) : std::log2(correction)) -
+        std::log2(base_comp[j]);
       if (types[i][j] > 0.0)
-        col_bits += types[i][j] * (log2(types[i][j]) - log2(base_comp[j]));
+        col_bits +=
+          types[i][j] * (std::log2(types[i][j]) - std::log2(base_comp[j]));
     }
     bits.push_back(col_bits);
   }
