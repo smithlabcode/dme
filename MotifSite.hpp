@@ -1,26 +1,28 @@
-/*
- * Copyright (C) 2006 Cold Spring Harbor Laboratory
- * Authors: Andrew D. Smith, Pavel Sumazin and Michael Q. Zhang
+/* MIT License
  *
- * This file is part of CREAD.
+ * Copyright (c) 2025 Andrew D Smith
  *
- * CREAD is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
  *
- * CREAD is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
- * You should have received a copy of the GNU General Public License
- * along with CREAD; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ * DEALINGS IN THE SOFTWARE.
  */
 
-#ifndef MOTIFSITE_HPP
-#define MOTIFSITE_HPP
+#ifndef MOTIFSITE_HPP_
+#define MOTIFSITE_HPP_
 
 #include <cstdint>
 #include <ostream>
@@ -29,67 +31,71 @@
 struct MotifSite {
   std::string site;
   std::string seq_name;
-  int start;
-  std::uint32_t length;
+  int start{};
+  std::uint32_t length{};
   std::string gaps;
-  char orientation;
-  float score;
+  char orientation{};
+  float score{};
 
-  bool
-  is_valid_orientation(char c);
+  auto
+  is_valid_orientation(const char c) -> bool;
 
-  MotifSite(std::string s, std::string sn, int st, std::uint32_t l,
-            std::string g, char o, float sc) :
-    site(s), seq_name(sn), start(st), length(l), gaps(g), orientation(o),
-    score(sc) {}
+  MotifSite(const std::string &site, const std::string &seq_name,
+            const int start, const std::uint32_t length,
+            const std::string &gaps, const char orientation,
+            const float score) :
+    site{site}, seq_name{seq_name}, start{start}, length{length}, gaps{gaps},
+    orientation{orientation}, score{score} {}
 
-  std::string
-  get_site() const {
+  [[nodiscard]] auto
+  get_site() const -> const std::string & {
     return site;
   }
-  std::string
-  get_seq_name() const {
+
+  [[nodiscard]] auto
+  get_seq_name() const -> const std::string & {
     return seq_name;
   }
-  std::string
-  get_gaps() const {
+
+  [[nodiscard]] auto
+  get_gaps() const -> const std::string & {
     return gaps;
   }
-  char
-  get_orientation() const {
+
+  [[nodiscard]] auto
+  get_orientation() const -> char {
     return orientation;
   }
-  bool
-  negstrand() const {
+
+  [[nodiscard]] auto
+  negstrand() const -> bool {
     return orientation == 'n';
   }
-  bool
-  posstrand() const {
+
+  [[nodiscard]] auto
+  posstrand() const -> bool {
     return orientation == 'p';
   }
-  float
-  get_score() const {
+
+  [[nodiscard]] auto
+  get_score() const -> float {
     return score;
   }
 
-  int
-  get_start() const {
+  [[nodiscard]] auto
+  get_start() const -> int {
     return start;
   }
 
-  std::uint32_t
-  get_length() const {
+  [[nodiscard]] auto
+  get_length() const -> std::uint32_t {
     return length;
   }
 
-  void
+  auto
   set_score(float s) {
     score = s;
   }
-  // bool
-  // operator<(const MotifSite &ms) const;
-  // bool
-  // operator==(const MotifSite &ms) const;
 };
 
 inline std::ostream &
@@ -105,4 +111,4 @@ operator<<(std::ostream &o, const MotifSite &s) {
   // clang-format on
 }
 
-#endif
+#endif  // MOTIFSITE_HPP_

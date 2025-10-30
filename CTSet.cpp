@@ -1,77 +1,101 @@
-/*
- * Copyright (C) 2008 Cold Spring Harbor Laboratory and Andrew D Smith
- * Author: Andrew D Smith
+/* MIT License
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of the
- * License, or (at your option) any later version.
+ * Copyright (c) 2025 Andrew D Smith
  *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- * 02110-1301 USA
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ * DEALINGS IN THE SOFTWARE.
  */
 
 #include "CTSet.hpp"
 #include "dme2_common.hpp"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
-#include <cstring>
+#include <cstdint>
+#include <functional>
+#include <iterator>
 #include <numeric>
+#include <utility>
 
-using std::max;
-using std::pair;
-using std::sort;
-using std::string;
-using std::vector;
+// NOLINTBEGIN (*-c-arrays)
 
-float CTSet::fixed_matrix[15][4] = {
-  {1.000, 0.000, 0.000, 0.000},  // A
-  {0.000, 1.000, 0.000, 0.000},  // C
-  {0.000, 0.000, 1.000, 0.000},  // G
-  {0.000, 0.000, 0.000, 1.000},  // T
-  {0.500, 0.500, 0.000, 0.000},  // M
-  {0.500, 0.000, 0.500, 0.000},  // R
-  {0.500, 0.000, 0.000, 0.500},  // W
-  {0.000, 0.500, 0.500, 0.000},  // S
-  {0.000, 0.500, 0.000, 0.500},  // Y
-  {0.000, 0.000, 0.500, 0.500},  // K
-  {0.333, 0.333, 0.333, 0.000},  // V
-  {0.333, 0.333, 0.000, 0.333},  // H
-  {0.333, 0.000, 0.333, 0.333},  // D
-  {0.000, 0.333, 0.333, 0.333},  // B
-  {0.250, 0.250, 0.250, 0.250}   // N
+// float CTSet::fixed_matrix[15][4] = {
+//   {1.000, 0.000, 0.000, 0.000},  // A
+//   {0.000, 1.000, 0.000, 0.000},  // C
+//   {0.000, 0.000, 1.000, 0.000},  // G
+//   {0.000, 0.000, 0.000, 1.000},  // T
+//   {0.500, 0.500, 0.000, 0.000},  // M
+//   {0.500, 0.000, 0.500, 0.000},  // R
+//   {0.500, 0.000, 0.000, 0.500},  // W
+//   {0.000, 0.500, 0.500, 0.000},  // S
+//   {0.000, 0.500, 0.000, 0.500},  // Y
+//   {0.000, 0.000, 0.500, 0.500},  // K
+//   {0.333, 0.333, 0.333, 0.000},  // V
+//   {0.333, 0.333, 0.000, 0.333},  // H
+//   {0.333, 0.000, 0.333, 0.333},  // D
+//   {0.000, 0.333, 0.333, 0.333},  // B
+//   {0.250, 0.250, 0.250, 0.250}   // N
+// };
+
+std::array<std::array<float, 4>, 15> CTSet::fixed_matrix = {
+  std::array<float, 4>{1.000, 0.000, 0.000, 0.000},  // A
+  std::array<float, 4>{0.000, 1.000, 0.000, 0.000},  // C
+  std::array<float, 4>{0.000, 0.000, 1.000, 0.000},  // G
+  std::array<float, 4>{0.000, 0.000, 0.000, 1.000},  // T
+  std::array<float, 4>{0.500, 0.500, 0.000, 0.000},  // M
+  std::array<float, 4>{0.500, 0.000, 0.500, 0.000},  // R
+  std::array<float, 4>{0.500, 0.000, 0.000, 0.500},  // W
+  std::array<float, 4>{0.000, 0.500, 0.500, 0.000},  // S
+  std::array<float, 4>{0.000, 0.500, 0.000, 0.500},  // Y
+  std::array<float, 4>{0.000, 0.000, 0.500, 0.500},  // K
+  std::array<float, 4>{0.333, 0.333, 0.333, 0.000},  // V
+  std::array<float, 4>{0.333, 0.333, 0.000, 0.333},  // H
+  std::array<float, 4>{0.333, 0.000, 0.333, 0.333},  // D
+  std::array<float, 4>{0.000, 0.333, 0.333, 0.333},  // B
+  std::array<float, 4>{0.250, 0.250, 0.250, 0.250},  // N
 };
 
-float
-CTSet::get_bits(const vector<float> &col, const vector<float> &base_comp) {
-  float bits = 0;
-  for (size_t i = 0; i < alphabet_size; ++i)
-    if (col[i] > 0)
-      bits += col[i] * (std::log2(col[i]) - std::log2(base_comp[i]));
-  return bits;
+auto
+CTSet::get_bits(const std::vector<float> &col,
+                const std::vector<float> &base_comp) -> float {
+  float column_bits = 0.0f;
+  for (auto i = 0u; i < alphabet_size; ++i)
+    column_bits += col[i] > 0.0f
+                     ? col[i] * (std::log2(col[i]) - std::log2(base_comp[i]))
+                     : 0.0f;
+  return column_bits;
 }
 
-CTSet::CTSet(const float granularity, const vector<float> &base_comp,
+CTSet::CTSet(const float granularity, const std::vector<float> &base_comp,
              const float correction) {
   if (granularity == 0) {
-    types = vector<vector<float>>(n_degen_nucs);
+    types = std::vector<std::vector<float>>(n_degen_nucs);
     for (size_t i = 0; i < n_degen_nucs; i++)
-      std::copy(fixed_matrix[i], fixed_matrix[i] + alphabet_size,
+      std::copy(std::cbegin(fixed_matrix[i]), std::cend(fixed_matrix[i]),
                 back_inserter(types[i]));
   }
   else {
     size_t volume = static_cast<size_t>(std::ceil(1.0 / granularity));
     size_t n_types = (volume + 1) * (volume + 2) * (volume + 3) / 6;
-    types = vector<vector<float>>(n_types, vector<float>(alphabet_size));
-    vector<float> v(alphabet_size);
+    types = std::vector<std::vector<float>>(n_types,
+                                            std::vector<float>(alphabet_size));
+    std::vector<float> v(alphabet_size);
     generate_column(volume, volume, 0, 0, v);
   }
   sort_types(base_comp);
@@ -79,7 +103,7 @@ CTSet::CTSet(const float granularity, const vector<float> &base_comp,
 }
 
 CTSet::CTSet(const std::vector<float> &original, const float newgran,
-             const vector<float> &base_comp, const float correction) {
+             const std::vector<float> &base_comp, const float correction) {
   // first do exact copy of original
   types.push_back(original);
 
@@ -103,7 +127,7 @@ CTSet::CTSet(const std::vector<float> &original, const float newgran,
 }
 
 CTSet::CTSet(const Column &orig_col, const float newgran,
-             const vector<float> &base_comp, const float correction) {
+             const std::vector<float> &base_comp, const float correction) {
   std::vector<float> original(alphabet_size);
   std::copy(std::cbegin(orig_col), std::cend(orig_col), std::begin(original));
 
@@ -131,7 +155,8 @@ CTSet::CTSet(const Column &orig_col, const float newgran,
 
 size_t
 CTSet::generate_column(const size_t volume, const size_t max_volume,
-                       const size_t depth, size_t index, vector<float> &v) {
+                       const size_t depth, size_t index,
+                       std::vector<float> &v) {
   for (size_t i = 0; i <= volume; ++i) {
     v[depth] = i;
     if (depth == 2) {
@@ -147,17 +172,19 @@ CTSet::generate_column(const size_t volume, const size_t max_volume,
 }
 
 void
-CTSet::sort_types(const vector<float> &base_comp) {
-  vector<pair<float, size_t>> sorter;
+CTSet::sort_types(const std::vector<float> &base_comp) {
+  std::vector<std::pair<float, size_t>> sorter;
   for (size_t i = 0; i < types.size(); ++i) {
-    float bits = 0;
+    float column_bits = 0;
     for (size_t j = 0; j < alphabet_size; j++)
       if (types[i][j] > 0)
-        bits += types[i][j] * (log(types[i][j]) - log(base_comp[j]));
-    sorter.push_back(std::make_pair(bits, i));
+        column_bits +=
+          types[i][j] * (std::log2(types[i][j]) - std::log2(base_comp[j]));
+    sorter.emplace_back(column_bits, i);
   }
-  sort(sorter.begin(), sorter.end(), std::greater<pair<float, size_t>>());
-  vector<vector<float>> temp_types;
+  std::sort(sorter.begin(), sorter.end(),
+            std::greater<std::pair<float, size_t>>());
+  std::vector<std::vector<float>> temp_types;
   for (size_t i = 0; i < types.size(); i++)
     temp_types.push_back(types[sorter[i].second]);
   types.clear();
@@ -166,7 +193,8 @@ CTSet::sort_types(const vector<float> &base_comp) {
 
 /* convert column types to corresponding scoring matrix columns */
 void
-CTSet::build_scoremat(const vector<float> &base_comp, const float correction) {
+CTSet::build_scoremat(const std::vector<float> &base_comp,
+                      const float correction) {
 
   scoremat = types;
   bits.clear();
@@ -195,7 +223,8 @@ CTSet::path_to_matrix(const DMEPath &path) const {
 }
 
 Matrix
-CTSet::path_to_matrix(const DMEPath &path, const vector<CTSet> &column_types) {
+CTSet::path_to_matrix(const DMEPath &path,
+                      const std::vector<CTSet> &column_types) {
   const std::uint32_t n = std::size(path.path);
   auto best_matrix = std::vector<Column>(n);
   for (size_t i = 0; i < path.path.size(); ++i)
@@ -204,3 +233,5 @@ CTSet::path_to_matrix(const DMEPath &path, const vector<CTSet> &column_types) {
               std::begin(best_matrix[i]));
   return Matrix(best_matrix, n);
 }
+
+// NOLINTEND (*-c-arrays)

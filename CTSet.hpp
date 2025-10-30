@@ -1,29 +1,35 @@
-/*
- * Copyright (C) 2008 Cold Spring Harbor Laboratory and Andrew D Smith
- * Author: Andrew D Smith
+/* MIT License
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of the
- * License, or (at your option) any later version.
+ * Copyright (c) 2025 Andrew D Smith
  *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- * 02110-1301 USA
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ * DEALINGS IN THE SOFTWARE.
  */
 
 #ifndef CTSET_HPP
 #define CTSET_HPP
 
-// Warning: magic number in this file assumes alphabet_size==4
-
 #include "Matrix.hpp"
+#include "dme2_common.hpp"
+
+#include <array>
+#include <cstddef>
+#include <vector>
 
 struct DMEPath {
   DMEPath(std::vector<size_t> p, float s) : path(p), score(s) {}
@@ -31,8 +37,7 @@ struct DMEPath {
   float score;
 };
 
-class CTSet {
-public:
+struct CTSet {
   CTSet(const std::vector<float> &col, const float newgran,
         const std::vector<float> &base_comp, const float correction = 1e-10);
   CTSet(const Column &col, const float newgran,
@@ -47,26 +52,27 @@ public:
     return types.size();
   }
 
-  std::vector<std::vector<float>>
-  get_matrix() const {
+  [[nodiscard]] auto
+  get_matrix() const -> const std::vector<std::vector<float>> & {
     return scoremat;
   }
 
-  std::vector<float>
-  get_bits() const {
+  [[nodiscard]] auto
+  get_bits() const -> const std::vector<float> & {
     return bits;
   }
 
-  Matrix
-  path_to_matrix(const DMEPath &path) const;
+  [[nodiscard]] auto
+  path_to_matrix(const DMEPath &path) const -> Matrix;
 
-  static Matrix
-  path_to_matrix(const DMEPath &path, const std::vector<CTSet> &column_types);
+  [[nodiscard]] static auto
+  path_to_matrix(const DMEPath &path,
+                 const std::vector<CTSet> &column_types) -> Matrix;
 
-  static float
-  get_bits(const std::vector<float> &col, const std::vector<float> &base_comp);
+  [[nodiscard]] static auto
+  get_bits(const std::vector<float> &col,
+           const std::vector<float> &base_comp) -> float;
 
-private:
   std::vector<std::vector<float>> types;
   std::vector<std::vector<float>> scoremat;
   std::vector<float> bits;
@@ -78,7 +84,8 @@ private:
                   const size_t depth, size_t index, std::vector<float> &v);
 
   static const size_t n_degen_nucs = 15;
-  static float fixed_matrix[15][4];
+  static std::array<std::array<float, 4>, 15> fixed_matrix;
+  // float fixed_matrix[15][4];
 
   void
   build_scoremat(const std::vector<float> &base_comp, const float correction);
