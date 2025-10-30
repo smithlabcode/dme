@@ -1,59 +1,57 @@
-/*
- * Copyright (C) 2008 Cold Spring Harbor Laboratory and Andrew D Smith
- * Author: Andrew D Smith
+/* MIT License
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of the
- * License, or (at your option) any later version.
+ * Copyright (c) 2025 Andrew D Smith
  *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- * 02110-1301 USA
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  */
 
 #include "dme_tcm_workspace.hpp"
 
+#include "ScoringMatrix.hpp"
 #include "dme2_common.hpp"
 
+#include <algorithm>
 #include <cmath>
+#include <iterator>
+#include <ranges>  // IWYU pragma: keep
 
-using std::max;
-using std::min;
-using std::string;
+// NOLINTBEGIN (*-pointer-arithmetic)
 
-/* convert column types to corresponding scoring matrix columns */
-static float
-complement_scoremat(const std::vector<std::vector<float>> coltypes,
-                    std::vector<std::vector<float>> &scoremat) {
+// convert column types to corresponding scoring matrix columns
+template <typename T>
+[[nodiscard]] static auto
+complement_scoremat(const std::vector<std::vector<T>> &coltypes,
+                    std::vector<std::vector<T>> &scoremat) -> T {
   scoremat = coltypes;
-
-  float max_score = 0.0;
-  for (size_t i = 0; i < coltypes.size(); ++i)
-    for (size_t j = 0; j < coltypes[i].size(); j++)
-      max_score = max(max_score, scoremat[i][j]);
-
-  for (size_t i = 0; i < coltypes.size(); ++i)
-    for (size_t j = 0; j < coltypes[i].size(); j++)
-      scoremat[i][j] = max_score - scoremat[i][j];
-
+  float max_score{};
+  for (const auto &s : scoremat)
+    // cppcheck-suppress useStlAlgorithm
+    max_score = std::max(max_score, std::ranges::max(s));
+  const auto cmpl = [&](const auto x) { return max_score - x; };
+  for (auto &s : scoremat)
+    std::ranges::transform(s, std::begin(s), cmpl);
   return max_score;
 }
 
-////////////////////////////////////////////////////////////////////////
-////////////////////                                ////////////////////
-////////////////////    LEXICOGRAPHIC TREE STUFF    ////////////////////
-////////////////////                                ////////////////////
-////////////////////////////////////////////////////////////////////////
+/// lexicographic tree stuff
 
 struct dme_tcm_lextree {
-  dme_tcm_lextree() : child(0), max_diff(0.0) {}
   void
   allocate_child_ptrs();
   float
@@ -71,8 +69,8 @@ struct dme_tcm_lextree {
         const std::vector<std::string> &background, const float lambda,
         const size_t motif_width);
 
-  dme_tcm_lextree **child;
-  float max_diff;
+  dme_tcm_lextree **child{};
+  float max_diff{};
 };
 
 /* allocate space for the array of children pointers of a dme_tcm_lextree */
@@ -105,7 +103,7 @@ dme_tcm_lextree::set_max_diff() {
     for (size_t i = 0; i < alphabet_size; ++i)
       if (child[i]) {
         child[i]->set_max_diff();
-        max_diff += max(child[i]->max_diff, static_cast<float>(0));
+        max_diff += std::max(child[i]->max_diff, static_cast<float>(0));
       }
   }
   return max_diff;
@@ -118,20 +116,20 @@ dme_tcm_lextree::build(const std::vector<std::string> &foreground,
                        const float lambda, const size_t motif_width) {
   allocate_child_ptrs();
   for (size_t i = 0; i < foreground.size(); i++) {
-    const size_t n_substrings = foreground[i].length() - motif_width + 1;
+    const size_t n_substrings = std::size(foreground[i]) - motif_width + 1;
     for (size_t j = 0; j < n_substrings; ++j) {
       size_t k = 0;
-      for (; k < motif_width && toupper(foreground[i][j + k]) != 'N'; k++)
+      for (; k < motif_width && foreground[i][j + k] != 'N'; k++)
         ;
       if (k == motif_width)
         insert(foreground[i].begin() + j, 0, motif_width, 1.0);
     }
   }
   for (size_t i = 0; i < background.size(); i++) {
-    const size_t n_substrings = background[i].length() - motif_width + 1;
+    const size_t n_substrings = std::size(background[i]) - motif_width + 1;
     for (size_t j = 0; j < n_substrings; ++j) {
       size_t k = 0;
-      for (; k < motif_width && toupper(background[i][j + k]) != 'N'; k++)
+      for (; k < motif_width && background[i][j + k] != 'N'; k++)
         ;
       if (k == motif_width)
         insert(background[i].begin() + j, 0, motif_width, -lambda);
@@ -182,7 +180,7 @@ dme_tcm_lextree::remove_matching(
 
 /**
  * This function removes all nodes in the tree for which all leaves
- * below them correspond to strings that match the given matrix.
+ * below them correspond to std::strings that match the given matrix.
  */
 void
 dme_tcm_workspace::deactivate(const ScoringMatrix &sm) {
@@ -193,7 +191,7 @@ dme_tcm_workspace::deactivate(const ScoringMatrix &sm) {
     float max_column_score = 0.0;
     for (size_t j = 0; j < alphabet_size; ++j) {
       score_matrix[i][j] = sm[i][j];
-      max_column_score = max(score_matrix[i][j], max_column_score);
+      max_column_score = std::max(score_matrix[i][j], max_column_score);
     }
     for (size_t j = 0; j < alphabet_size; j++)
       score_matrix[i][j] = max_column_score - score_matrix[i][j];
@@ -262,7 +260,7 @@ dme_tcm_workspace::run_dme_tcm_local(
   float max_col_type_info = 0.0;
   for (size_t i = 0; i < motif_width; ++i)
     for (size_t j = 0; j < n_refined_types[i]; j++)
-      max_col_type_info = max(max_col_type_info, refined_bits[i][j]);
+      max_col_type_info = std::max(max_col_type_info, refined_bits[i][j]);
 
   refined_coltype_bits = refined_bits;
   for (size_t i = 0; i < motif_width; ++i)
@@ -337,7 +335,7 @@ dme_tcm_workspace::run_dme_tcm(
   // possible surplus_information in a column
   float max_col_type_info = 0.0;
   for (size_t i = 0; i < n_types; ++i)
-    max_col_type_info = max(max_col_type_info, coltype_bits[i]);
+    max_col_type_info = std::max(max_col_type_info, coltype_bits[i]);
   for (size_t i = 0; i < n_types; ++i)
     coltype_bits[i] = max_col_type_info - coltype_bits[i];
 
@@ -363,18 +361,17 @@ dme_tcm_workspace::dme_tcm_workspace(const std::vector<std::string> &foreground,
                                      const std::vector<std::string> &background,
                                      const int width, const float adjustment) :
   motif_width(width) {
-
   prefix = std::vector<size_t>(motif_width, 0);
 
   // get the foreground and background sequence lengths
   size_t fg_seqlen = 0;
   for (size_t i = 0; i < foreground.size(); ++i)
-    fg_seqlen += (foreground[i].length() -
+    fg_seqlen += (std::size(foreground[i]) -
                   std::count(foreground[i].begin(), foreground[i].end(), 'N'));
 
   size_t bg_seqlen = 0;
   for (size_t i = 0; i < background.size(); ++i)
-    bg_seqlen += (background[i].length() -
+    bg_seqlen += (std::size(background[i]) -
                   std::count(background[i].begin(), background[i].end(), 'N'));
 
   const float lambda =
@@ -388,7 +385,7 @@ dme_tcm_workspace::dme_tcm_workspace(const std::vector<std::string> &foreground,
   nodes = std::vector<std::vector<dme_tcm_lextree *>>(motif_width + 1);
   for (size_t i = 0; i <= motif_width; ++i) {
     const size_t max_frontier_size =
-      min(total_sites, static_cast<size_t>(std::pow(alphabet_size, i)));
+      std::min(total_sites, static_cast<size_t>(std::pow(alphabet_size, i)));
     score[i] = std::vector<float>(max_frontier_size);
     nodes[i] = std::vector<dme_tcm_lextree *>(max_frontier_size);
   }
@@ -397,3 +394,5 @@ dme_tcm_workspace::dme_tcm_workspace(const std::vector<std::string> &foreground,
 }
 
 dme_tcm_workspace::~dme_tcm_workspace() { delete nodes[0][0]; }
+
+// NOLINTEND (*-pointer-arithmetic)
