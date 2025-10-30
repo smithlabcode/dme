@@ -55,6 +55,9 @@ Discriminating matrix enumeration for motif discovery.
 #include <string>
 #include <vector>
 
+// NOLINTBEGIN (*-narrowing-conversions)
+// NOLINTBEGIN (*-avoid-magic-numbers)
+
 static bool VERBOSE = false;
 
 [[nodiscard]] static inline auto
@@ -139,12 +142,11 @@ refine_matrix_zoops(dme_zoops_workspace &ws, const std::size_t motif_width,
                     const std::size_t n_changes, const std::size_t n_iterations,
                     const float required_improvement,
                     const std::string &progress_prefix, Matrix &matrix) {
-
-  float score = 0, prev_score = 0, improvement = 1;
+  float score = 0.0f, improvement = 1.0f;
 
   for (std::size_t i = 0;
        i < n_iterations && improvement > required_improvement; ++i) {
-    prev_score = score;
+    const float prev_score = score;
 
     std::vector<CTSet> refined_cts;
     for (std::size_t j = 0; j < matrix.width; ++j)
@@ -225,7 +227,6 @@ get_seeds_tcm(const bool single_strand,
               const std::size_t motif_width, const std::size_t outputs,
               const float granularity, const float bits, const float correction,
               const float adjustment, std::vector<Matrix> &seeds) {
-
   static const char *seeds_progress_prefix = "obtaining seeds  ";
 
   dme_tcm_workspace ws(foreground, background, motif_width, adjustment);
@@ -259,13 +260,11 @@ refine_matrix_tcm(dme_tcm_workspace &ws, const std::size_t motif_width,
                   const std::size_t n_changes, const std::size_t n_iterations,
                   const float required_improvement,
                   const std::string &progress_prefix, Matrix &matrix) {
-
-  float score = 0, prev_score = 0, improvement = 1;
+  float score = 0.0f, improvement = 1.0f;
 
   for (std::size_t i = 0;
        i < n_iterations && improvement > required_improvement; ++i) {
-
-    prev_score = score;
+    const float prev_score = score;
 
     std::vector<CTSet> refined_cts;
     for (std::size_t j = 0; j < matrix.width; ++j)
@@ -519,7 +518,6 @@ get_sites_tcm(const std::vector<std::string> &sequences,
               const bool singlestrand, std::vector<Site> &sites) {
   const std::size_t matwidth = sm.width;
   for (std::size_t i = 0; i < sequences.size(); ++i) {
-
     std::vector<int> helper(sequences[i].length());
     std::transform(
       std::cbegin(sequences[i]), std::cend(sequences[i]), std::begin(helper),
@@ -558,14 +556,13 @@ get_sites_zoops_score(const std::vector<Site> &sites) {
 }
 
 Motif
-prepare_motif_zoops(const std::string &name, const Matrix matrix,
-                    const std::vector<float> base_comp, const float correction,
+prepare_motif_zoops(const std::string &name, const Matrix &matrix,
+                    const std::vector<float> &base_comp, const float correction,
                     const std::vector<std::string> &fgseqs,
                     const std::vector<std::string> &fgnames,
                     const std::vector<std::string> &bgseqs,
                     const std::vector<std::string> &bgnames,
                     const bool singlestrand, const float fg_bg_ratio) {
-
   // convert the pwm to a scoring matrix
   const ScoringMatrix sm(matrix, base_comp, correction);
   const ScoringMatrix smrc(sm.revcomp());
@@ -630,7 +627,6 @@ preprocess_sequences_zoops(const bool single_strand,
                            std::vector<std::string> &original_background,
                            std::vector<std::string> &background,
                            std::vector<float> &base_comp, float &fg_bg_ratio) {
-
   // read fg sequences
   read_fasta(fgfilename, fgnames, original_foreground);
 
@@ -674,12 +670,11 @@ preprocess_sequences_zoops(const bool single_strand,
       for (std::size_t i = 0; i < foreground.size(); ++i)
         foreground[i] += "N" + revcomp(foreground[i]);
   }
-
 }  // END preprocess_sequences_zoops()
 
 Motif
-prepare_motif_tcm(const std::string &name, const Matrix matrix,
-                  const std::vector<float> base_comp, const float correction,
+prepare_motif_tcm(const std::string &name, const Matrix &matrix,
+                  const std::vector<float> &base_comp, const float correction,
                   const std::vector<std::string> &fgseqs,
                   const std::vector<std::string> &fgnames,
                   const std::vector<std::string> &bgseqs,
@@ -740,7 +735,6 @@ preprocess_sequences_tcm(const bool single_strand,
                          std::vector<std::string> &original_background,
                          std::vector<std::string> &background,
                          std::vector<float> &base_comp, float &length_ratio) {
-
   // read fg sequences
   read_fasta(fgfilename, fgnames, original_foreground);
 
@@ -786,14 +780,12 @@ preprocess_sequences_tcm(const bool single_strand,
   }
 }  // END preprocess_sequences()
 
-void
-validate_parameters(std::size_t &motif_width, float &bits) {
-
+auto
+validate_parameters(const std::size_t &motif_width, float &bits) {
   struct ParamSet {
-    int width;
-    float bits;
+    int width{};
+    float bits{};
   };
-
   static const std::size_t max_motif_width = 17;
   // clang-format off
   const struct ParamSet param_set[] = {
@@ -825,14 +817,11 @@ validate_parameters(std::size_t &motif_width, float &bits) {
 
   if (bits == std::numeric_limits<float>::max())
     bits = param_set[motif_width].bits;
-
-}  // END validate_parameters()
+}
 
 int
 main(int argc, char *argv[]) {
-
   try {
-
     static constexpr auto motif_prep_progress_prefix = "preparing motifs ";
 
     std::string fgfilename;   // foreground sequences file
@@ -1005,3 +994,6 @@ main(int argc, char *argv[]) {
   }
   return EXIT_SUCCESS;
 }
+
+// NOLINTEND (*-avoid-magic-numbers)
+// NOLINTEND (*-narrowing-conversions)
