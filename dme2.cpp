@@ -855,33 +855,36 @@ main(int argc, char *argv[]) {
 
     CLI::App app{about};
     argv = app.ensure_utf8(argv);
+    app.usage(usage);
+    if (argc > 1)
+      app.footer(description_msg);
     // app.usage(usage);
 
     // clang-format off
     app.set_help_flag("-h,--help", "Print a detailed help message and exit");
+    app.add_flag("-v,--verbose", VERBOSE, "print more info");
     app.add_flag("-z,--zoops", ZOOPS, "use the ZOOPS model (default: hybrid)");
     app.add_flag("-t,--tcm", TCM, "use the TCM model (default: hybrid)");
-    app.add_option("-f,--foreground", fgfilename, "foreground sequence in FASTA format")
+    app.add_option("-f,--foreground", fgfilename, "foreground sequences (FASTA)")
       ->required()
       ->option_text("FILE")
       ->check(CLI::ExistingFile);
-    app.add_option("-b,--background", bgfilename, "background sequences in FASTA format")
+    app.add_option("-b,--background", bgfilename, "background sequences (FASTA)")
       ->option_text("FILE")
       ->check(CLI::ExistingFile);
     app.add_option("-o,--output", outfilename, "output file name")
-      ->option_text("FILE")
-      ->required();
+      ->required()
+      ->option_text("FILE");
     app.add_option("-n,--number", outputs, "number of motifs to produce");
     app.add_option("-p,--prefix", accession_prefix, "motif accession prefix");
     app.add_option("-w,--width", motif_width, "motif width");
     app.add_option("-i,--bits", bits, "min bits per column (default depends on width)");
-    app.add_option("--single-strand", singlestrand, "search only one strand");
-    app.add_flag("-v,--verbose", VERBOSE, "print more info");
+    app.add_option("-s,--single", singlestrand, "use only the given strand");
     // clang-format on
 
     if (argc == 1) {
       std::println("{}", app.help());
-      return EXIT_FAILURE;
+      return EXIT_SUCCESS;
     }
 
     CLI11_PARSE(app, argc, argv);
